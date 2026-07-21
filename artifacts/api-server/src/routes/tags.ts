@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router = Router();
 
@@ -85,7 +86,30 @@ router.post("/tags", requireAuth, async (req, res) => {
   res.status(201).json({ ...created, unreadCount: 0 });
 });
 
-router.delete("/tags/:tagId", requireAuth, async (req, res) => {
+router.patch("/tags/:tagId", requireAuth, async (req, res) => {
+  const tagId = parseInt(req.params.tagId as string);
+  const { userId } = req as AuthedRequest;
+  const { name, icon, sortOrder } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (name !== undefined) {
+    updates.name = name;
+    updates.slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+  if (icon !== undefined) updates.icon = icon;
+  if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+  const [updated] = await db
+    .update(tagsTable)
+    .set(updates)
+    .where(eq(tagsTable.id, tagId))
+    .returning();
+  const unreadCount = await getUnreadCount(updated.id, updated.type, userId);
+  res.json({ ...updated, unreadCount });
+});
+
+router.delete("/tags/:tagId", requireAuth, requireAdmin, async (req, res) => {
   const tagId = parseInt(req.params.tagId as string);
   await db.delete(tagsTable).where(eq(tagsTable.id, tagId));
   res.status(204).end();

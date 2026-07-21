@@ -34,6 +34,7 @@ import type {
   SpaceUpdateInput,
   Tag,
   TagInput,
+  TagUpdateInput,
   UnreadCounts,
   UserProfile
 } from './api.schemas';
@@ -581,6 +582,78 @@ export const useCreateTag = <TError = ErrorType<unknown>,
       return useMutation(getCreateTagMutationOptions(options));
     }
 
+export const getUpdateTagUrl = (tagId: number,) => {
+
+
+
+
+  return `/api/tags/${tagId}`
+}
+
+/**
+ * @summary Rename or reorder a tag
+ */
+export const updateTag = async (tagId: number,
+    tagUpdateInput: TagUpdateInput, options?: RequestInit): Promise<Tag> => {
+
+  return customFetch<Tag>(getUpdateTagUrl(tagId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tagUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTagMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTag>>, TError,{tagId: number;data: BodyType<TagUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTag>>, TError,{tagId: number;data: BodyType<TagUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTag>>, {tagId: number;data: BodyType<TagUpdateInput>}> = (props) => {
+          const {tagId,data} = props ?? {};
+
+          return  updateTag(tagId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTagMutationResult = NonNullable<Awaited<ReturnType<typeof updateTag>>>
+    export type UpdateTagMutationBody = BodyType<TagUpdateInput>
+    export type UpdateTagMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Rename or reorder a tag
+ */
+export const useUpdateTag = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTag>>, TError,{tagId: number;data: BodyType<TagUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTag>>,
+        TError,
+        {tagId: number;data: BodyType<TagUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateTagMutationOptions(options));
+    }
+
 export const getDeleteTagUrl = (tagId: number,) => {
 
 
@@ -590,7 +663,7 @@ export const getDeleteTagUrl = (tagId: number,) => {
 }
 
 /**
- * @summary Delete a tag
+ * @summary Delete a tag (admin only)
  */
 export const deleteTag = async (tagId: number, options?: RequestInit): Promise<void> => {
 
@@ -639,7 +712,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteTagMutationError = ErrorType<unknown>
 
     /**
- * @summary Delete a tag
+ * @summary Delete a tag (admin only)
  */
 export const useDeleteTag = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTag>>, TError,{tagId: number}, TContext>, request?: SecondParameter<typeof customFetch>}

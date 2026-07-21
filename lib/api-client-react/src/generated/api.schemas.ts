@@ -15,6 +15,7 @@ export interface UserProfile {
   displayName: string;
   /** @nullable */
   avatarUrl?: string | null;
+  isAdmin: boolean;
 }
 
 export type TagType = typeof TagType[keyof typeof TagType];
@@ -69,6 +70,13 @@ export interface TagInput {
   /** @minLength 1 */
   name: string;
   type: TagInputType;
+  icon?: string;
+  sortOrder?: number;
+}
+
+export interface TagUpdateInput {
+  /** @minLength 1 */
+  name?: string;
   icon?: string;
   sortOrder?: number;
 }

@@ -27,6 +27,7 @@ export * from './tag';
 export * from './tagInput';
 export * from './tagInputType';
 export * from './tagType';
+export * from './tagUpdateInput';
 export * from './unreadCounts';
 export * from './unreadCountsCounts';
 export * from './uploadResult';

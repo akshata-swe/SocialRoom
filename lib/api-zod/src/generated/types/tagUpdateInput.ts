@@ -6,11 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  displayName: string;
-  /** @nullable */
-  avatarUrl?: string | null;
-  isAdmin: boolean;
+export interface TagUpdateInput {
+  /** @minLength 1 */
+  name?: string;
+  icon?: string;
+  sortOrder?: number;
 }

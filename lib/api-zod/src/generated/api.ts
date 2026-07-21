@@ -150,7 +150,35 @@ export const CreateTagResponse = zod.object({
 
 
 /**
- * @summary Delete a tag
+ * @summary Rename or reorder a tag
+ */
+export const UpdateTagParams = zod.object({
+  "tagId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateTagBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "icon": zod.string().optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdateTagResponse = zod.object({
+  "id": zod.number(),
+  "spaceId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "type": zod.enum(['postbox', 'chat']),
+  "icon": zod.string().nullish(),
+  "sortOrder": zod.number(),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Delete a tag (admin only)
  */
 export const DeleteTagParams = zod.object({
   "tagId": zod.coerce.number()
@@ -353,7 +381,8 @@ export const GetMeResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "displayName": zod.string(),
-  "avatarUrl": zod.string().nullish()
+  "avatarUrl": zod.string().nullish(),
+  "isAdmin": zod.boolean()
 })
 
 

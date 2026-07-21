@@ -51,6 +51,19 @@ A private, intentional digital sanctuary for exactly two people. A "Google Drive
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+## Admin setup
+
+Delete operations (for both spaces and tags) are restricted to the admin user. Rename and add are available to all authenticated users.
+
+**To designate an admin:**
+1. Sign in to the app and open the browser console
+2. Run: `fetch('/api/me').then(r=>r.json()).then(d=>console.log(d.id))`
+3. Copy the user ID (looks like `user_...`)
+4. Set `ADMIN_USER_ID=<that ID>` as an environment secret in Replit
+5. Restart the API Server workflow
+
+Until `ADMIN_USER_ID` is set, all authenticated users can delete (graceful default for initial setup). Once set, only the designated admin sees the trash icon on spaces and tags. The `admin` badge appears in the sidebar footer for the admin user.
+
 ## Gotchas
 
 - After changing `lib/db/src/schema/`, run `pnpm run typecheck:libs` before the API server typecheck or you'll get stale declaration errors.

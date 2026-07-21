@@ -138,10 +138,33 @@ paths:
                 $ref: "#/components/schemas/Tag"
 
   /tags/{tagId}:
+    patch:
+      operationId: updateTag
+      tags: [tags]
+      summary: Rename or reorder a tag
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagUpdateInput"
+      responses:
+        "200":
+          description: Updated tag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
     delete:
       operationId: deleteTag
       tags: [tags]
-      summary: Delete a tag
+      summary: Delete a tag (admin only)
       parameters:
         - name: tagId
           in: path
@@ -358,10 +381,13 @@ components:
           type: string
         avatarUrl:
           type: ["string", "null"]
+        isAdmin:
+          type: boolean
       required:
         - id
         - email
         - displayName
+        - isAdmin
 
     Space:
       type: object
@@ -450,6 +476,17 @@ components:
         - spaceId
         - name
         - type
+
+    TagUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        icon:
+          type: string
+        sortOrder:
+          type: integer
 
     UnreadCounts:
       type: object

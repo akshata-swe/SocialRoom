@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getAuth, createClerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { isAdmin } from "../middlewares/requireAdmin";
 
 const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
@@ -24,14 +25,15 @@ router.get("/me", requireAuth, async (req, res) => {
       email: user.emailAddresses[0]?.emailAddress ?? "",
       displayName,
       avatarUrl: user.imageUrl ?? null,
+      isAdmin: isAdmin(userId),
     });
   } catch {
-    // Fallback if clerk client fails
     res.json({
       id: userId,
       email: "",
       displayName: "Partner",
       avatarUrl: null,
+      isAdmin: isAdmin(userId),
     });
   }
 });

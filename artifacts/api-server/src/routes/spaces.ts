@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router = Router();
 
@@ -111,7 +112,7 @@ router.patch("/spaces/:spaceId", requireAuth, async (req, res) => {
   res.json({ ...updated, tags });
 });
 
-router.delete("/spaces/:spaceId", requireAuth, async (req, res) => {
+router.delete("/spaces/:spaceId", requireAuth, requireAdmin, async (req, res) => {
   const spaceId = parseInt(req.params.spaceId as string);
   await db.delete(spacesTable).where(eq(spacesTable.id, spaceId));
   res.status(204).end();
