@@ -101,11 +101,14 @@ function useChatStream(
 
 export default function ChatView({ tag }: ChatViewProps) {
   const qc = useQueryClient();
-  const messagesQueryKey = getGetMessagesQueryKey({ tagId: tag.id });
+  // Must exactly match the params passed to useGetMessages below,
+  // otherwise setQueryData targets a different cache slot and nothing re-renders.
+  const MSG_PARAMS = { tagId: tag.id, limit: 100 } as const;
+  const messagesQueryKey = getGetMessagesQueryKey(MSG_PARAMS);
 
   // Initial history load — no polling; SSE handles live updates
   const { data: messages, isLoading } = useGetMessages(
-    { tagId: tag.id, limit: 100 },
+    MSG_PARAMS,
     { query: { enabled: !!tag.id } },
   );
 
