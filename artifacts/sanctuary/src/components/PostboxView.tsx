@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetLetters, useDeleteLetter, getGetLettersQueryKey, Tag } from "@workspace/api-client-react";
+import { useGetLetters, useDeleteLetter, useGetMe, getGetLettersQueryKey, Tag } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, PenTool, Mail, Paperclip, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -17,6 +17,7 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
     { query: { enabled: !!tag.id } }
   );
   const deleteMutation = useDeleteLetter();
+  const { data: me } = useGetMe();
 
   // Two-step delete: first click sets the id, second click confirms
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -24,7 +25,6 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
   const handleDeleteClick = (e: React.MouseEvent, letterId: number) => {
     e.stopPropagation();
     if (confirmDeleteId === letterId) {
-      // Second click — execute delete
       deleteMutation.mutate({ letterId }, {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getGetLettersQueryKey({ tagId: tag.id }) });
@@ -73,9 +73,10 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {letters.map((letter) => {
+              const isMyLetter = letter.authorId === me?.id;
               const isConfirming = confirmDeleteId === letter.id;
+
               return (
-                // div instead of button so we can nest the delete button inside
                 <div
                   key={letter.id}
                   role="button"
@@ -85,25 +86,27 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
                   className="group relative text-left bg-card border border-card-border rounded-xl p-6 h-56 flex flex-col justify-between transition-all duration-300 hover-elevate hover:border-primary/30 shadow-sm cursor-pointer"
                   data-testid={`letter-card-${letter.id}`}
                 >
-                  {/* Unread dot */}
+                  {/* Unread dot — hidden when confirming delete to avoid overlap */}
                   {!letter.isRead && !isConfirming && (
                     <div className="absolute top-4 right-4 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--color-primary),0.8)]" />
                   )}
 
-                  {/* Delete button — revealed on hover */}
-                  <button
-                    onClick={(e) => handleDeleteClick(e, letter.id)}
-                    className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200
-                      ${isConfirming
-                        ? "bg-destructive text-destructive-foreground opacity-100 scale-100"
-                        : "bg-card border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                      }`}
-                    title={isConfirming ? "Click again to confirm" : "Delete letter"}
-                    aria-label={isConfirming ? "Confirm delete" : "Delete letter"}
-                  >
-                    <Trash2 size={11} strokeWidth={2} />
-                    {isConfirming && <span>Delete?</span>}
-                  </button>
+                  {/* Delete button — own letters only, revealed on hover */}
+                  {isMyLetter && (
+                    <button
+                      onClick={(e) => handleDeleteClick(e, letter.id)}
+                      className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200
+                        ${isConfirming
+                          ? "bg-destructive text-destructive-foreground opacity-100 scale-100"
+                          : "bg-card border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                        }`}
+                      title={isConfirming ? "Click again to confirm" : "Delete letter"}
+                      aria-label={isConfirming ? "Confirm delete" : "Delete letter"}
+                    >
+                      <Trash2 size={11} strokeWidth={2} />
+                      {isConfirming && <span>Delete?</span>}
+                    </button>
+                  )}
 
                   <div className="space-y-4">
                     <h3 className="font-serif text-xl font-medium text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">

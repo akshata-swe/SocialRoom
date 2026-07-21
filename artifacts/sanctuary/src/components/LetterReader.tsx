@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { useGetLetter, useReactToLetter, useDeleteLetter, getGetLetterQueryKey } from "@workspace/api-client-react";
+import { useGetLetter, useReactToLetter, useDeleteLetter, useGetMe, getGetLetterQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ const EMOJI_OPTIONS = ["❤️", "✨", "🕯️", "☕", "🍂"];
 
 export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
   const { data: letter, isLoading } = useGetLetter(letterId);
+  const { data: me } = useGetMe();
   const reactMutation = useReactToLetter();
   const deleteMutation = useDeleteLetter();
   const qc = useQueryClient();
@@ -77,20 +78,22 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
           <X size={20} className="stroke-[1.5]" />
         </button>
 
-        {/* Delete — two-step: first click shows confirm, second executes */}
-        <button
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          className={`fixed top-8 right-24 z-10 flex items-center gap-2 px-4 py-3 rounded-full border transition-all duration-200
-            ${confirmDelete
-              ? "bg-destructive text-destructive-foreground border-destructive shadow-lg"
-              : "bg-card border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
-            }`}
-          title={confirmDelete ? "Click again to permanently delete" : "Delete this letter"}
-        >
-          <Trash2 size={16} strokeWidth={1.5} />
-          {confirmDelete && <span className="text-sm font-medium">Delete?</span>}
-        </button>
+        {/* Delete — own letters only, two-step confirm */}
+        {letter.authorId === me?.id && (
+          <button
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className={`fixed top-8 right-24 z-10 flex items-center gap-2 px-4 py-3 rounded-full border transition-all duration-200
+              ${confirmDelete
+                ? "bg-destructive text-destructive-foreground border-destructive shadow-lg"
+                : "bg-card border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+              }`}
+            title={confirmDelete ? "Click again to permanently delete" : "Delete this letter"}
+          >
+            <Trash2 size={16} strokeWidth={1.5} />
+            {confirmDelete && <span className="text-sm font-medium">Delete?</span>}
+          </button>
+        )}
 
         <article className="bg-card border border-card-border rounded-2xl p-8 md:p-16 shadow-2xl space-y-12 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50" />
