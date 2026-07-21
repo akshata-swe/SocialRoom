@@ -1,0 +1,36 @@
+Act as a Principal Full-Stack Engineer and build a private, dual-user, asynchronous web application based on the attached SDLC specification document. 
+
+### Core Product Philosophy
+This application is a "Google Drive inside Slack" digital sanctuary designed for deep, long-form, asynchronous epistolary communication. It prioritizes deliberate writing over real-time chatter. There must be ZERO typing indicators, active read receipts, sound notifications, or pressure to reply immediately.
+
+### Technical Stack Guidelines
+1. Frontend: Angular (v18+) using a single-page application structure.
+2. Styling & Layout: Tailwind CSS for a dark-themed, Discord/Slack-style interface.
+3. Database & Services: Firebase (Firestore for NoSQL storage, Firebase Auth for security, and Firebase Storage for letter attachments).
+4. Text Editor: Integration of Editor.js (or Quill) for block-based, long-form rich text drafting.
+
+### Layout Mechanics & UI Architecture
+- Left Sidebar (Fixed 260px on Desktop, Collapsible Drawer on Mobile):
+  - Displays high-level categories/spaces (e.g., "Getting Started", "Deep Musings").
+  - Under each space, displays tag-channels (e.g., "1. #written-letters", "2. #future-reads").
+  - Displays a subtle unread badge counter that updates silently in the background without popups or sound effects.
+- Main Content Canvas (Right Panel):
+  - Postbox View: When clicking a channel tag like "#written-letters", show a responsive grid of envelope cards representing letters (showing title, tags, and date).
+  - Reader Overlay: Clicking a letter card opens a distraction-free modal/overlay showing the full Editor.js JSON content formatted nicely for reading.
+  - Writer View: A rich text editor canvas to compose long letters, attach media, assign tags, and save to Firestore.
+  - Chat View: When clicking casual channels like "#general-dm", shift the main panel to a simple bottom-anchored messaging column.
+
+### Initial Firestore Database Schema
+Setup Firestore models matching these structures:
+1. `spaces`: { id, label, sortOrder }
+2. `tags`: { id, spaceId, label, icon, sortOrder }
+3. `letters`: { id, senderId, title, content (JSON block), tagIds (array), attachments (array), status ("unread"/"read"), createdAt }
+
+### Step-by-Step Execution Plan for Replit Agent
+Step 1: Set up the root project workspace and install Angular, Tailwind CSS, Editor.js, and the Firebase Web SDK.
+Step 2: Build the core dark-mode shell layout (Left Sidebar + Right Panel Container) using Tailwind CSS.
+Step 3: Implement mock database data or seed Firestore with initial spaces ("Getting Started") and tags ("1. #written-letters", "2. #future-reads").
+Step 4: Build the right panel postbox envelope grid and reader overlay component.
+Step 5: Integrate Editor.js for writing and saving long-form letters directly to Firestore with tag selections.
+
+Please analyze the attached SDLC document for any additional data schema fields or user stories and begin building Step 1.
