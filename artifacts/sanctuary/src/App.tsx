@@ -6,9 +6,12 @@ import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wo
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { Loader2 } from "lucide-react";
 
 import Home from './pages/Home';
 import Sanctuary from './pages/Sanctuary';
+import OnboardingModal from './components/OnboardingModal';
 
 const queryClient = new QueryClient();
 
@@ -105,11 +108,53 @@ function HomeRedirect() {
   );
 }
 
+/**
+ * Onboarding gate — sits between Clerk auth and the main workspace.
+ *
+ * Flow:
+ *  1. Signed out          → redirect to landing page
+ *  2. Signed in, loading  → full-screen spinner (avoids flash of wrong content)
+ *  3. isProfileComplete=false → OnboardingModal (blocks the workspace)
+ *  4. isProfileComplete=true  → Sanctuary (main workspace)
+ */
+function OnboardingGate() {
+  const { data: me, isLoading } = useGetMe();
+  const qc = useQueryClient();
+
+  // While /me is resolving, hold a neutral loading screen
+  if (isLoading || !me) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/50" />
+      </div>
+    );
+  }
+
+  // Profile incomplete — show onboarding modal over a blurred workspace skeleton
+  if (!me.isProfileComplete) {
+    return (
+      <>
+        {/* Muted workspace skeleton so the modal has context behind it */}
+        <div className="fixed inset-0 bg-background pointer-events-none" />
+        <OnboardingModal
+          onComplete={() => {
+            // /me cache was already busted inside OnboardingModal on success;
+            // an extra invalidation here ensures the gate re-evaluates.
+            qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
+          }}
+        />
+      </>
+    );
+  }
+
+  return <Sanctuary />;
+}
+
 function SanctuaryPortal() {
   return (
     <>
       <Show when="signed-in">
-        <Sanctuary />
+        <OnboardingGate />
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />

@@ -19,6 +19,8 @@ export * from './letterReactions';
 export * from './letterSummary';
 export * from './message';
 export * from './messageInput';
+export * from './profileRecord';
+export * from './profileUpdateInput';
 export * from './reactionInput';
 export * from './space';
 export * from './spaceInput';

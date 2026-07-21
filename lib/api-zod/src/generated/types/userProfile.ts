@@ -8,8 +8,12 @@
 
 export interface UserProfile {
   id: string;
+  /** System login credential — never shown in chat UI */
   email: string;
+  /** Preferred display name shown everywhere in the UI */
   displayName: string;
+  /** False until the user completes the onboarding form */
+  isProfileComplete: boolean;
   /** @nullable */
   avatarUrl?: string | null;
   isAdmin: boolean;

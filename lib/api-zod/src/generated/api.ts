@@ -382,10 +382,43 @@ export const DeleteMessageResponse = zod.void()
  */
 export const GetMeResponse = zod.object({
   "id": zod.string(),
-  "email": zod.string(),
-  "displayName": zod.string(),
+  "email": zod.string().describe('System login credential — never shown in chat UI'),
+  "displayName": zod.string().describe('Preferred display name shown everywhere in the UI'),
+  "isProfileComplete": zod.boolean().describe('False until the user completes the onboarding form'),
   "avatarUrl": zod.string().nullish(),
   "isAdmin": zod.boolean()
+})
+
+
+/**
+ * @summary Get the current user's profile (creates one if new)
+ */
+export const GetProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "isProfileComplete": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Set display name and mark profile complete
+ */
+export const updateProfileBodyDisplayNameMax = 40;
+
+
+
+export const UpdateProfileBody = zod.object({
+  "displayName": zod.string().min(1).max(updateProfileBodyDisplayNameMax)
+})
+
+export const UpdateProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "isProfileComplete": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 

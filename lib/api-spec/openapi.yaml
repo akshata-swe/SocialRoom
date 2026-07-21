@@ -360,6 +360,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserProfile"
 
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [health]
+      summary: Get the current user's profile (creates one if new)
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileRecord"
+    patch:
+      operationId: updateProfile
+      tags: [health]
+      summary: Set display name and mark profile complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateInput"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileRecord"
+
 components:
   schemas:
     HealthStatus:
@@ -377,8 +407,13 @@ components:
           type: string
         email:
           type: string
+          description: System login credential — never shown in chat UI
         displayName:
           type: string
+          description: Preferred display name shown everywhere in the UI
+        isProfileComplete:
+          type: boolean
+          description: False until the user completes the onboarding form
         avatarUrl:
           type: ["string", "null"]
         isAdmin:
@@ -387,7 +422,40 @@ components:
         - id
         - email
         - displayName
+        - isProfileComplete
         - isAdmin
+
+    ProfileRecord:
+      type: object
+      properties:
+        userId:
+          type: string
+        displayName:
+          type: string
+        isProfileComplete:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - displayName
+        - isProfileComplete
+        - createdAt
+        - updatedAt
+
+    ProfileUpdateInput:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 40
+      required:
+        - displayName
 
     Space:
       type: object

@@ -11,11 +11,31 @@ export interface HealthStatus {
 
 export interface UserProfile {
   id: string;
+  /** System login credential — never shown in chat UI */
   email: string;
+  /** Preferred display name shown everywhere in the UI */
   displayName: string;
+  /** False until the user completes the onboarding form */
+  isProfileComplete: boolean;
   /** @nullable */
   avatarUrl?: string | null;
   isAdmin: boolean;
+}
+
+export interface ProfileRecord {
+  userId: string;
+  displayName: string;
+  isProfileComplete: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProfileUpdateInput {
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  displayName: string;
 }
 
 export type TagType = typeof TagType[keyof typeof TagType];

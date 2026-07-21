@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getAuth, createClerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { isAdmin } from "../middlewares/requireAdmin";
+import { getOrCreateProfile } from "./profile";
 
 const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
@@ -9,33 +10,37 @@ const clerkClient = createClerkClient({
 
 const router = Router();
 
+/**
+ * GET /me
+ *
+ * Returns the current user's identity as seen by the application.
+ * - displayName  comes from user_profiles (the name they set in onboarding)
+ * - isProfileComplete gates the onboarding flow on the frontend
+ * - email is returned for the profile page but MUST NOT be rendered in chat UI
+ */
 router.get("/me", requireAuth, async (req, res) => {
   const auth = getAuth(req);
   const userId = auth!.userId!;
 
+  let email = "";
   try {
-    const user = await clerkClient.users.getUser(userId);
-    const displayName =
-      [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-      user.emailAddresses[0]?.emailAddress?.split("@")[0] ||
-      "Partner";
-
-    res.json({
-      id: userId,
-      email: user.emailAddresses[0]?.emailAddress ?? "",
-      displayName,
-      avatarUrl: user.imageUrl ?? null,
-      isAdmin: isAdmin(userId),
-    });
+    const clerkUser = await clerkClient.users.getUser(userId);
+    email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
   } catch {
-    res.json({
-      id: userId,
-      email: "",
-      displayName: "Partner",
-      avatarUrl: null,
-      isAdmin: isAdmin(userId),
-    });
+    // Non-fatal — email is not shown in UI anyway
   }
+
+  // user_profiles is the canonical source for displayName and isProfileComplete
+  const profile = await getOrCreateProfile(userId);
+
+  res.json({
+    id: userId,
+    email,                                   // kept for admin/audit; never shown in chat
+    displayName: profile.displayName,        // the name shown everywhere in the UI
+    isProfileComplete: profile.isProfileComplete,
+    avatarUrl: null,
+    isAdmin: isAdmin(userId),
+  });
 });
 
 export default router;
