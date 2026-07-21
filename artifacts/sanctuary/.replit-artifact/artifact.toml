@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "The Social Media Room"
+version = "1.0.0"
+id = "artifacts/sanctuary"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25853
+
+[services.development]
+run = "pnpm --filter @workspace/sanctuary run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sanctuary", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sanctuary/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25853"
+BASE_PATH = "/"

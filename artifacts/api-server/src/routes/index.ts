@@ -1,8 +1,20 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import healthRouter from "./health";
+import spacesRouter from "./spaces";
+import tagsRouter from "./tags";
+import lettersRouter from "./letters";
+import messagesRouter from "./messages";
+import meRouter from "./me";
+import uploadRouter from "./upload";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.use(healthRouter);
+router.use(spacesRouter);
+router.use(tagsRouter);
+router.use(lettersRouter);
+router.use(messagesRouter);
+router.use(meRouter);
+router.use(uploadRouter);
 
 export default router;

@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: The Social Media Room API - private dual-user digital sanctuary
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: spaces
+    description: Sidebar space groups
+  - name: tags
+    description: Channel tags within spaces
+  - name: letters
+    description: Long-form letter correspondence
+  - name: messages
+    description: Chat messages
+  - name: upload
+    description: File attachment uploads
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,286 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /spaces:
+    get:
+      operationId: getSpaces
+      tags: [spaces]
+      summary: List all spaces with their tags
+      responses:
+        "200":
+          description: List of spaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Space"
+    post:
+      operationId: createSpace
+      tags: [spaces]
+      summary: Create a new space
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceInput"
+      responses:
+        "201":
+          description: Created space
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Space"
+
+  /spaces/{spaceId}:
+    delete:
+      operationId: deleteSpace
+      tags: [spaces]
+      summary: Delete a space
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tags:
+    get:
+      operationId: getTags
+      tags: [tags]
+      summary: List all tags
+      responses:
+        "200":
+          description: List of tags with unread counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+    post:
+      operationId: createTag
+      tags: [tags]
+      summary: Create a new tag/channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagInput"
+      responses:
+        "201":
+          description: Created tag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+
+  /tags/{tagId}:
+    delete:
+      operationId: deleteTag
+      tags: [tags]
+      summary: Delete a tag
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /unread-counts:
+    get:
+      operationId: getUnreadCounts
+      tags: [tags]
+      summary: Get unread counts per tag for the current user
+      responses:
+        "200":
+          description: Unread counts map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCounts"
+
+  /letters:
+    get:
+      operationId: getLetters
+      tags: [letters]
+      summary: List letters for a given tag
+      parameters:
+        - name: tagId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of letters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LetterSummary"
+    post:
+      operationId: createLetter
+      tags: [letters]
+      summary: Create a new letter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LetterInput"
+      responses:
+        "201":
+          description: Created letter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Letter"
+
+  /letters/{letterId}:
+    get:
+      operationId: getLetter
+      tags: [letters]
+      summary: Get a specific letter (marks as read)
+      parameters:
+        - name: letterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Letter with full content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Letter"
+    delete:
+      operationId: deleteLetter
+      tags: [letters]
+      summary: Delete a letter
+      parameters:
+        - name: letterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /letters/{letterId}/react:
+    post:
+      operationId: reactToLetter
+      tags: [letters]
+      summary: Add or remove an emoji reaction to a letter
+      parameters:
+        - name: letterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionInput"
+      responses:
+        "200":
+          description: Updated letter reactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Letter"
+
+  /messages:
+    get:
+      operationId: getMessages
+      tags: [messages]
+      summary: Get messages for a chat tag, with cursor pagination
+      parameters:
+        - name: tagId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Cursor - get messages before this message ID
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a chat message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{messageId}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [health]
+      summary: Get current authenticated user info
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +324,308 @@ components:
       required:
         - status
 
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+      required:
+        - id
+        - email
+        - displayName
+
+    Space:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sortOrder:
+          type: integer
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+      required:
+        - id
+        - name
+        - sortOrder
+        - tags
+
+    SpaceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        sortOrder:
+          type: integer
+      required:
+        - name
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        spaceId:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+          enum: [postbox, chat]
+        icon:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        unreadCount:
+          type: integer
+      required:
+        - id
+        - spaceId
+        - name
+        - slug
+        - type
+        - sortOrder
+        - unreadCount
+
+    TagInput:
+      type: object
+      properties:
+        spaceId:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [postbox, chat]
+        icon:
+          type: string
+        sortOrder:
+          type: integer
+      required:
+        - spaceId
+        - name
+        - type
+
+    UnreadCounts:
+      type: object
+      properties:
+        counts:
+          type: object
+          additionalProperties:
+            type: integer
+      required:
+        - counts
+
+    LetterSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        tagIds:
+          type: array
+          items:
+            type: integer
+        authorId:
+          type: string
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        isRead:
+          type: boolean
+        hasAttachments:
+          type: boolean
+        excerpt:
+          type: ["string", "null"]
+      required:
+        - id
+        - title
+        - tagIds
+        - authorId
+        - authorName
+        - createdAt
+        - isRead
+        - hasAttachments
+
+    Letter:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: object
+          description: Editor.js-style block content JSON
+          additionalProperties: true
+        tagIds:
+          type: array
+          items:
+            type: integer
+        authorId:
+          type: string
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        isRead:
+          type: boolean
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+      required:
+        - id
+        - title
+        - content
+        - tagIds
+        - authorId
+        - authorName
+        - createdAt
+        - isRead
+        - reactions
+        - attachments
+
+    LetterInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: object
+          additionalProperties: true
+        tagIds:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentInput"
+      required:
+        - title
+        - content
+        - tagIds
+
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required:
+        - id
+        - url
+        - filename
+        - mimeType
+        - size
+
+    AttachmentInput:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required:
+        - url
+        - filename
+        - mimeType
+        - size
+
+    ReactionInput:
+      type: object
+      properties:
+        emoji:
+          type: string
+      required:
+        - emoji
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        tagId:
+          type: integer
+        authorId:
+          type: string
+        authorName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tagId
+        - authorId
+        - authorName
+        - content
+        - createdAt
+
+    MessageInput:
+      type: object
+      properties:
+        tagId:
+          type: integer
+        content:
+          type: string
+          minLength: 1
+      required:
+        - tagId
+        - content
+
+    UploadResult:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required:
+        - url
+        - filename
+        - mimeType
+        - size
