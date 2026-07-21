@@ -1,0 +1,1 @@
+- [SSE real-time messaging](sse-messaging.md) — chat uses SSE (not polling); in-process messageBus.ts broadcasts on POST; ChatView subscribes via EventSource.

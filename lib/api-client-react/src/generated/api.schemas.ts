@@ -155,9 +155,17 @@ export interface ReactionInput {
 export interface Message {
   id: number;
   tagId: number;
-  authorId: string;
-  authorName: string;
+  /** Unique Clerk user ID of the sender */
+  senderId: string;
+  /** Preferred display name shown in the chat UI for both parties */
+  senderDisplayName: string;
+  /**
+     * System login email stored for auditing — never rendered in the UI
+     * @nullable
+     */
+  senderLoginName?: string | null;
   content: string;
+  /** Server-authoritative UTC timestamp */
   createdAt: string;
 }
 

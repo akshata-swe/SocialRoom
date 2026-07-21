@@ -14,7 +14,10 @@ export const messagesTable = pgTable("messages", {
     .notNull()
     .references(() => tagsTable.id, { onDelete: "cascade" }),
   authorId: text("author_id").notNull(),
+  /** Preferred display name shown in the chat UI. Never shows login credentials. */
   authorName: text("author_name").notNull(),
+  /** System login identifier (email) stored for backend auditing only — never rendered in UI. */
+  senderLoginName: text("sender_login_name"),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

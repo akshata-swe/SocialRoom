@@ -336,10 +336,11 @@ export const GetMessagesQueryParams = zod.object({
 export const GetMessagesResponseItem = zod.object({
   "id": zod.number(),
   "tagId": zod.number(),
-  "authorId": zod.string(),
-  "authorName": zod.string(),
+  "senderId": zod.string().describe('Unique Clerk user ID of the sender'),
+  "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
+  "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
 })
 export const GetMessagesResponse = zod.array(GetMessagesResponseItem)
 
@@ -358,10 +359,11 @@ export const SendMessageBody = zod.object({
 export const SendMessageResponse = zod.object({
   "id": zod.number(),
   "tagId": zod.number(),
-  "authorId": zod.string(),
-  "authorName": zod.string(),
+  "senderId": zod.string().describe('Unique Clerk user ID of the sender'),
+  "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
+  "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
 })
 
 
