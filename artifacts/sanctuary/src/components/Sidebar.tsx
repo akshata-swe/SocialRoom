@@ -488,7 +488,7 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50 shrink-0">
         <div className="flex items-center gap-3 text-primary">
           <Feather size={20} className="stroke-1" />
-          <span className="font-serif text-lg tracking-wide font-medium">Sanctuary</span>
+          <span className="font-serif text-lg tracking-wide font-medium">The Room</span>
         </div>
       </div>
 

@@ -10,7 +10,7 @@ export default function Home() {
       <header className="w-full flex justify-between items-center px-6 md:px-12 py-8 z-10 relative">
         <div className="flex items-center gap-3 text-primary">
           <PenLine size={24} className="stroke-1" />
-          <span className="font-serif text-xl tracking-wide font-medium">Sanctuary</span>
+          <span className="font-serif text-xl tracking-wide font-medium">The Room</span>
         </div>
         <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-300">
           Sign In
@@ -31,12 +31,12 @@ export default function Home() {
           href="/sign-up" 
           className="inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all duration-300 hover-elevate shadow-lg hover:shadow-primary/25"
         >
-          Enter the Sanctuary
+          Enter the The Room
         </Link>
       </main>
 
       <footer className="w-full py-8 text-center text-muted-foreground/60 text-sm z-10 relative font-light">
-        <p>A private, intentional digital sanctuary.</p>
+        <p>A private, intentional digital space.</p>
       </footer>
     </div>
   );

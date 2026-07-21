@@ -49,7 +49,7 @@ export default function Sanctuary() {
         >
           <Menu size={24} className="stroke-1" />
         </button>
-        <span className="font-serif ml-2 text-lg">Sanctuary</span>
+        <span className="font-serif ml-2 text-lg">The Room
       </div>
 
       {/* Sidebar Overlay */}

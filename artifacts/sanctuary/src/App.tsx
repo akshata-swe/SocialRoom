@@ -153,13 +153,13 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "Welcome back to the sanctuary",
+            title: "Welcome back to The Room",
             subtitle: "Enter the quiet room",
           },
         },
         signUp: {
           start: {
-            title: "Join the sanctuary",
+            title: "Join The Room",
             subtitle: "A private place for two",
           },
         },
