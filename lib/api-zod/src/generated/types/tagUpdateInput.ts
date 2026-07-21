@@ -11,4 +11,5 @@ export interface TagUpdateInput {
   name?: string;
   icon?: string;
   sortOrder?: number;
+  spaceId?: number;
 }

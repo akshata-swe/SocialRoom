@@ -89,7 +89,7 @@ router.post("/tags", requireAuth, async (req, res) => {
 router.patch("/tags/:tagId", requireAuth, async (req, res) => {
   const tagId = parseInt(req.params.tagId as string);
   const { userId } = req as AuthedRequest;
-  const { name, icon, sortOrder } = req.body;
+  const { name, icon, sortOrder, spaceId } = req.body;
   const updates: Record<string, unknown> = {};
   if (name !== undefined) {
     updates.name = name;
@@ -100,6 +100,7 @@ router.patch("/tags/:tagId", requireAuth, async (req, res) => {
   }
   if (icon !== undefined) updates.icon = icon;
   if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+  if (spaceId !== undefined) updates.spaceId = spaceId;
   const [updated] = await db
     .update(tagsTable)
     .set(updates)

@@ -162,7 +162,8 @@ export const UpdateTagParams = zod.object({
 export const UpdateTagBody = zod.object({
   "name": zod.string().min(1).optional(),
   "icon": zod.string().optional(),
-  "sortOrder": zod.number().optional()
+  "sortOrder": zod.number().optional(),
+  "spaceId": zod.number().optional()
 })
 
 export const UpdateTagResponse = zod.object({

@@ -487,6 +487,8 @@ components:
           type: string
         sortOrder:
           type: integer
+        spaceId:
+          type: integer
 
     UnreadCounts:
       type: object

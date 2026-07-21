@@ -79,6 +79,7 @@ export interface TagUpdateInput {
   name?: string;
   icon?: string;
   sortOrder?: number;
+  spaceId?: number;
 }
 
 export type UnreadCountsCounts = {[key: string]: number};
