@@ -16,6 +16,8 @@ export const userProfilesTable = pgTable("user_profiles", {
   isProfileComplete: boolean("is_profile_complete").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  /** Timestamp of the last time the user acknowledged activity notifications. */
+  lastActivitySeenAt: timestamp("last_activity_seen_at").notNull().defaultNow(),
 });
 
 export type UserProfile = typeof userProfilesTable.$inferSelect;

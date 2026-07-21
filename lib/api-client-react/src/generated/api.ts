@@ -24,14 +24,18 @@ import type {
   GetMessagesParams,
   HealthStatus,
   Letter,
+  LetterComment,
+  LetterCommentInput,
   LetterInput,
   LetterSummary,
   Message,
   MessageInput,
   MessageUpdateInput,
+  NotificationSummary,
   ProfileRecord,
   ProfileUpdateInput,
   ReactionInput,
+  ReactionToggleResult,
   Space,
   SpaceInput,
   SpaceUpdateInput,
@@ -1476,6 +1480,375 @@ export const useDeleteMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteMessageMutationOptions(options));
+    }
+
+export const getReactToMessageUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/messages/${messageId}/react`
+}
+
+/**
+ * @summary Toggle an emoji reaction on a message
+ */
+export const reactToMessage = async (messageId: number,
+    reactionInput: ReactionInput, options?: RequestInit): Promise<ReactionToggleResult> => {
+
+  return customFetch<ReactionToggleResult>(getReactToMessageUrl(messageId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reactionInput)
+  }
+);}
+
+
+
+
+
+export const getReactToMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactToMessage>>, TError,{messageId: number;data: BodyType<ReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reactToMessage>>, TError,{messageId: number;data: BodyType<ReactionInput>}, TContext> => {
+
+const mutationKey = ['reactToMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reactToMessage>>, {messageId: number;data: BodyType<ReactionInput>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  reactToMessage(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReactToMessageMutationResult = NonNullable<Awaited<ReturnType<typeof reactToMessage>>>
+    export type ReactToMessageMutationBody = BodyType<ReactionInput>
+    export type ReactToMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Toggle an emoji reaction on a message
+ */
+export const useReactToMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactToMessage>>, TError,{messageId: number;data: BodyType<ReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reactToMessage>>,
+        TError,
+        {messageId: number;data: BodyType<ReactionInput>},
+        TContext
+      > => {
+      return useMutation(getReactToMessageMutationOptions(options));
+    }
+
+export const getGetLetterCommentsUrl = (letterId: number,) => {
+
+
+
+
+  return `/api/letters/${letterId}/comments`
+}
+
+/**
+ * @summary Get all comments for a letter
+ */
+export const getLetterComments = async (letterId: number, options?: RequestInit): Promise<LetterComment[]> => {
+
+  return customFetch<LetterComment[]>(getGetLetterCommentsUrl(letterId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLetterCommentsQueryKey = (letterId: number,) => {
+    return [
+    `/api/letters/${letterId}/comments`
+    ] as const;
+    }
+
+
+export const getGetLetterCommentsQueryOptions = <TData = Awaited<ReturnType<typeof getLetterComments>>, TError = ErrorType<unknown>>(letterId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLetterComments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLetterCommentsQueryKey(letterId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLetterComments>>> = ({ signal }) => getLetterComments(letterId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: letterId !== null && letterId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLetterComments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLetterCommentsQueryResult = NonNullable<Awaited<ReturnType<typeof getLetterComments>>>
+export type GetLetterCommentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get all comments for a letter
+ */
+
+export function useGetLetterComments<TData = Awaited<ReturnType<typeof getLetterComments>>, TError = ErrorType<unknown>>(
+ letterId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLetterComments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLetterCommentsQueryOptions(letterId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddLetterCommentUrl = (letterId: number,) => {
+
+
+
+
+  return `/api/letters/${letterId}/comments`
+}
+
+/**
+ * @summary Add a comment to a letter
+ */
+export const addLetterComment = async (letterId: number,
+    letterCommentInput: LetterCommentInput, options?: RequestInit): Promise<LetterComment> => {
+
+  return customFetch<LetterComment>(getAddLetterCommentUrl(letterId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(letterCommentInput)
+  }
+);}
+
+
+
+
+
+export const getAddLetterCommentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addLetterComment>>, TError,{letterId: number;data: BodyType<LetterCommentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addLetterComment>>, TError,{letterId: number;data: BodyType<LetterCommentInput>}, TContext> => {
+
+const mutationKey = ['addLetterComment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addLetterComment>>, {letterId: number;data: BodyType<LetterCommentInput>}> = (props) => {
+          const {letterId,data} = props ?? {};
+
+          return  addLetterComment(letterId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddLetterCommentMutationResult = NonNullable<Awaited<ReturnType<typeof addLetterComment>>>
+    export type AddLetterCommentMutationBody = BodyType<LetterCommentInput>
+    export type AddLetterCommentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a comment to a letter
+ */
+export const useAddLetterComment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addLetterComment>>, TError,{letterId: number;data: BodyType<LetterCommentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addLetterComment>>,
+        TError,
+        {letterId: number;data: BodyType<LetterCommentInput>},
+        TContext
+      > => {
+      return useMutation(getAddLetterCommentMutationOptions(options));
+    }
+
+export const getGetNotificationsUrl = () => {
+
+
+
+
+  return `/api/notifications`
+}
+
+/**
+ * @summary Get counts of new activity on your content since last seen
+ */
+export const getNotifications = async ( options?: RequestInit): Promise<NotificationSummary> => {
+
+  return customFetch<NotificationSummary>(getGetNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNotificationsQueryKey = () => {
+    return [
+    `/api/notifications`
+    ] as const;
+    }
+
+
+export const getGetNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof getNotifications>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotifications>>> = ({ signal }) => getNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof getNotifications>>>
+export type GetNotificationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get counts of new activity on your content since last seen
+ */
+
+export function useGetNotifications<TData = Awaited<ReturnType<typeof getNotifications>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkNotificationsSeenUrl = () => {
+
+
+
+
+  return `/api/notifications/seen`
+}
+
+/**
+ * @summary Mark all notifications as seen (updates the activity cursor)
+ */
+export const markNotificationsSeen = async ( options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getMarkNotificationsSeenUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkNotificationsSeenMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationsSeen>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markNotificationsSeen>>, TError,void, TContext> => {
+
+const mutationKey = ['markNotificationsSeen'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markNotificationsSeen>>, void> = () => {
+
+
+          return  markNotificationsSeen(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkNotificationsSeenMutationResult = NonNullable<Awaited<ReturnType<typeof markNotificationsSeen>>>
+
+    export type MarkNotificationsSeenMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark all notifications as seen (updates the activity cursor)
+ */
+export const useMarkNotificationsSeen = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationsSeen>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markNotificationsSeen>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getMarkNotificationsSeenMutationOptions(options));
     }
 
 export const getGetMeUrl = () => {

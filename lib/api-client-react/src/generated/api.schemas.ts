@@ -172,6 +172,11 @@ export interface ReactionInput {
   emoji: string;
 }
 
+/**
+ * Map of emoji to list of user IDs who reacted
+ */
+export type MessageReactions = {[key: string]: string[]};
+
 export interface Message {
   id: number;
   tagId: number;
@@ -189,6 +194,8 @@ export interface Message {
   createdAt: string;
   /** True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it. */
   seenByPartner: boolean;
+  /** Map of emoji to list of user IDs who reacted */
+  reactions: MessageReactions;
 }
 
 export interface MessageInput {
@@ -200,6 +207,37 @@ export interface MessageInput {
 export interface MessageUpdateInput {
   /** @minLength 1 */
   content: string;
+}
+
+export type ReactionToggleResultReactions = {[key: string]: string[]};
+
+export interface ReactionToggleResult {
+  reactions: ReactionToggleResultReactions;
+}
+
+export interface LetterComment {
+  id: number;
+  letterId: number;
+  userId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface LetterCommentInput {
+  /** @minLength 1 */
+  content: string;
+}
+
+export interface NotificationSummary {
+  /** Count of new emoji reactions on your messages since last seen */
+  newMessageReactions: number;
+  /** Count of new comments on your letters since last seen */
+  newLetterComments: number;
+  /** Total emoji reactions on your letters from the partner (all time) */
+  totalLetterReactions: number;
+  /** The timestamp used as the "since" cursor */
+  since: string;
 }
 
 export interface UploadResult {

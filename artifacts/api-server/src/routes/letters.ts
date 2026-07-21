@@ -5,6 +5,8 @@ import {
   letterTagsTable,
   letterReadsTable,
   letterAttachmentsTable,
+  letterCommentsTable,
+  userProfilesTable,
 } from "@workspace/db";
 import { eq, sql, inArray, and, desc } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
@@ -259,4 +261,67 @@ router.post("/letters/:letterId/react", requireAuth, async (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// GET /letters/:letterId/comments
+// ---------------------------------------------------------------------------
+
+router.get("/letters/:letterId/comments", requireAuth, async (req, res) => {
+  const letterId = parseInt(req.params.letterId as string);
+
+  const comments = await db
+    .select()
+    .from(letterCommentsTable)
+    .where(eq(letterCommentsTable.letterId, letterId))
+    .orderBy(desc(letterCommentsTable.createdAt));
+
+  res.json(
+    comments.map((c) => ({
+      id: c.id,
+      letterId: c.letterId,
+      userId: c.userId,
+      authorName: c.authorName,
+      content: c.content,
+      createdAt: c.createdAt.toISOString(),
+    })),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// POST /letters/:letterId/comments
+// ---------------------------------------------------------------------------
+
+router.post("/letters/:letterId/comments", requireAuth, async (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const letterId = parseInt(req.params.letterId as string);
+  const { content } = req.body;
+
+  if (!content?.trim()) {
+    res.status(400).json({ error: "content is required" });
+    return;
+  }
+
+  // Resolve display name from user_profiles
+  const profileRows = await db
+    .select({ displayName: userProfilesTable.displayName })
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, userId))
+    .limit(1);
+  const authorName = profileRows[0]?.displayName?.trim() || "Partner";
+
+  const [comment] = await db
+    .insert(letterCommentsTable)
+    .values({ letterId, userId, authorName, content: content.trim() })
+    .returning();
+
+  res.status(201).json({
+    id: comment.id,
+    letterId: comment.letterId,
+    userId: comment.userId,
+    authorName: comment.authorName,
+    content: comment.content,
+    createdAt: comment.createdAt.toISOString(),
+  });
+});
+
 export default router;
+

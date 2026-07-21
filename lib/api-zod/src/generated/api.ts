@@ -341,7 +341,8 @@ export const GetMessagesResponseItem = zod.object({
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
-  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
 })
 export const GetMessagesResponse = zod.array(GetMessagesResponseItem)
 
@@ -365,7 +366,8 @@ export const SendMessageResponse = zod.object({
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
-  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
 })
 
 
@@ -391,7 +393,8 @@ export const UpdateMessageResponse = zod.object({
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
-  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
 })
 
 
@@ -403,6 +406,81 @@ export const DeleteMessageParams = zod.object({
 })
 
 export const DeleteMessageResponse = zod.void()
+
+
+/**
+ * @summary Toggle an emoji reaction on a message
+ */
+export const ReactToMessageParams = zod.object({
+  "messageId": zod.coerce.number()
+})
+
+export const ReactToMessageBody = zod.object({
+  "emoji": zod.string()
+})
+
+export const ReactToMessageResponse = zod.object({
+  "reactions": zod.record(zod.string(), zod.array(zod.string()))
+})
+
+
+/**
+ * @summary Get all comments for a letter
+ */
+export const GetLetterCommentsParams = zod.object({
+  "letterId": zod.coerce.number()
+})
+
+export const GetLetterCommentsResponseItem = zod.object({
+  "id": zod.number(),
+  "letterId": zod.number(),
+  "userId": zod.string(),
+  "authorName": zod.string(),
+  "content": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const GetLetterCommentsResponse = zod.array(GetLetterCommentsResponseItem)
+
+
+/**
+ * @summary Add a comment to a letter
+ */
+export const AddLetterCommentParams = zod.object({
+  "letterId": zod.coerce.number()
+})
+
+
+
+
+export const AddLetterCommentBody = zod.object({
+  "content": zod.string().min(1)
+})
+
+export const AddLetterCommentResponse = zod.object({
+  "id": zod.number(),
+  "letterId": zod.number(),
+  "userId": zod.string(),
+  "authorName": zod.string(),
+  "content": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get counts of new activity on your content since last seen
+ */
+export const GetNotificationsResponse = zod.object({
+  "newMessageReactions": zod.number().describe('Count of new emoji reactions on your messages since last seen'),
+  "newLetterComments": zod.number().describe('Count of new comments on your letters since last seen'),
+  "totalLetterReactions": zod.number().describe('Total emoji reactions on your letters from the partner (all time)'),
+  "since": zod.coerce.date().describe('The timestamp used as the \"since\" cursor')
+})
+
+
+/**
+ * @summary Mark all notifications as seen (updates the activity cursor)
+ */
+export const MarkNotificationsSeenResponse = zod.void()
 
 
 /**

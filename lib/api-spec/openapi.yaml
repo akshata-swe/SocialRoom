@@ -370,6 +370,97 @@ paths:
         "204":
           description: Deleted
 
+  /messages/{messageId}/react:
+    post:
+      operationId: reactToMessage
+      tags: [messages]
+      summary: Toggle an emoji reaction on a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionInput"
+      responses:
+        "200":
+          description: Updated reactions for the message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionToggleResult"
+
+  /letters/{letterId}/comments:
+    get:
+      operationId: getLetterComments
+      tags: [letters]
+      summary: Get all comments for a letter
+      parameters:
+        - name: letterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LetterComment"
+    post:
+      operationId: addLetterComment
+      tags: [letters]
+      summary: Add a comment to a letter
+      parameters:
+        - name: letterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LetterCommentInput"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LetterComment"
+
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [health]
+      summary: Get counts of new activity on your content since last seen
+      responses:
+        "200":
+          description: Notification summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSummary"
+
+  /notifications/seen:
+    post:
+      operationId: markNotificationsSeen
+      tags: [health]
+      summary: Mark all notifications as seen (updates the activity cursor)
+      responses:
+        "204":
+          description: Cursor updated
+
   /me:
     get:
       operationId: getMe
@@ -764,6 +855,13 @@ components:
         seenByPartner:
           type: boolean
           description: True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Map of emoji to list of user IDs who reacted
       required:
         - id
         - tagId
@@ -772,6 +870,7 @@ components:
         - content
         - createdAt
         - seenByPartner
+        - reactions
 
     MessageInput:
       type: object
@@ -793,6 +892,73 @@ components:
           minLength: 1
       required:
         - content
+
+    ReactionToggleResult:
+      type: object
+      properties:
+        reactions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - reactions
+
+    LetterComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        letterId:
+          type: integer
+        userId:
+          type: string
+        authorName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - letterId
+        - userId
+        - authorName
+        - content
+        - createdAt
+
+    LetterCommentInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+      required:
+        - content
+
+    NotificationSummary:
+      type: object
+      properties:
+        newMessageReactions:
+          type: integer
+          description: Count of new emoji reactions on your messages since last seen
+        newLetterComments:
+          type: integer
+          description: Count of new comments on your letters since last seen
+        totalLetterReactions:
+          type: integer
+          description: Total emoji reactions on your letters from the partner (all time)
+        since:
+          type: string
+          format: date-time
+          description: The timestamp used as the "since" cursor
+      required:
+        - newMessageReactions
+        - newLetterComments
+        - totalLetterReactions
+        - since
 
     UploadResult:
       type: object

@@ -1,20 +1,72 @@
-import { Link } from "wouter";
-import { PenLine } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { PenLine, Bell } from "lucide-react";
+import { useUser } from "@clerk/react";
+import { useGetNotifications, useMarkNotificationsSeen } from "@workspace/api-client-react";
+import { useEffect } from "react";
 
 export default function Home() {
+  const { isSignedIn } = useUser();
+  const [, setLocation] = useLocation();
+
+  const { data: notifications } = useGetNotifications({
+    query: { enabled: isSignedIn === true },
+  });
+
+  const markSeenMutation = useMarkNotificationsSeen();
+
+  const totalNew = isSignedIn
+    ? (notifications?.newMessageReactions ?? 0) + (notifications?.newLetterComments ?? 0)
+    : 0;
+
+  // If already signed in with no new notifications, redirect to main app
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const t = setTimeout(() => {
+      if (totalNew === 0) setLocation("/spaces");
+    }, 100);
+    return () => clearTimeout(t);
+  }, [isSignedIn, totalNew, setLocation]);
+
+  const handleEnter = () => {
+    if (isSignedIn) {
+      markSeenMutation.mutate();
+    }
+    setLocation(isSignedIn ? "/spaces" : "/sign-in");
+  };
+
+  // Compose the notification message
+  const buildNotifText = () => {
+    const parts: string[] = [];
+    if ((notifications?.newMessageReactions ?? 0) > 0) {
+      const n = notifications!.newMessageReactions;
+      parts.push(`${n} new reaction${n === 1 ? "" : "s"} on your messages`);
+    }
+    if ((notifications?.newLetterComments ?? 0) > 0) {
+      const n = notifications!.newLetterComments;
+      parts.push(`${n} new note${n === 1 ? "" : "s"} on your letters`);
+    }
+    if ((notifications?.totalLetterReactions ?? 0) > 0 && parts.length === 0) {
+      const n = notifications!.totalLetterReactions;
+      parts.push(`${n} emoji reaction${n === 1 ? "" : "s"} on your letters`);
+    }
+    return parts.join(" · ");
+  };
+
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-background text-foreground relative overflow-hidden">
       <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }}></div>
       <div className="absolute inset-0 z-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-background to-background"></div>
-      
+
       <header className="w-full flex justify-between items-center px-6 md:px-12 py-8 z-10 relative">
         <div className="flex items-center gap-3 text-primary">
           <PenLine size={24} className="stroke-1" />
           <span className="font-serif text-xl tracking-wide font-medium">The Room</span>
         </div>
-        <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-300">
-          Sign In
-        </Link>
+        {!isSignedIn && (
+          <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-300">
+            Sign In
+          </Link>
+        )}
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center text-center px-6 z-10 relative max-w-3xl mx-auto space-y-12">
@@ -27,12 +79,20 @@ export default function Home() {
           </p>
         </div>
 
-        <Link 
-          href="/sign-up" 
-          className="inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all duration-300 hover-elevate shadow-lg hover:shadow-primary/25"
+        {/* Notification banner — only for signed-in users with new activity */}
+        {isSignedIn && totalNew > 0 && (
+          <div className="flex items-center gap-3 px-6 py-4 bg-primary/10 border border-primary/30 rounded-2xl text-sm text-foreground/90 font-light max-w-md animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <Bell size={16} className="text-primary shrink-0" />
+            <span>{buildNotifText()}</span>
+          </div>
+        )}
+
+        <button
+          onClick={handleEnter}
+          className="inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-primary/25"
         >
-          Enter the The Room
-        </Link>
+          {isSignedIn ? "Enter the Room" : "Enter the Room"}
+        </button>
       </main>
 
       <footer className="w-full py-8 text-center text-muted-foreground/60 text-sm z-10 relative font-light">

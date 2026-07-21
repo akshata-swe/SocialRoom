@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { messagesTable, messageReadsTable, userProfilesTable } from "@workspace/db";
-import { eq, lt, ne, desc, and, sql } from "drizzle-orm";
+import {
+  messagesTable,
+  messageReadsTable,
+  messageReactionsTable,
+  userProfilesTable,
+} from "@workspace/db";
+import { eq, lt, ne, desc, and, sql, inArray } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
 import { broadcast, subscribe } from "../lib/messageBus";
 
@@ -11,19 +16,58 @@ const router = Router();
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Fetch reactions for a set of message IDs → map of messageId → {emoji → [userId]} */
+async function fetchReactionsMap(
+  messageIds: number[],
+): Promise<Map<number, Record<string, string[]>>> {
+  const map = new Map<number, Record<string, string[]>>();
+  if (messageIds.length === 0) return map;
+
+  const rows = await db
+    .select()
+    .from(messageReactionsTable)
+    .where(inArray(messageReactionsTable.messageId, messageIds));
+
+  for (const r of rows) {
+    if (!map.has(r.messageId)) map.set(r.messageId, {});
+    const byEmoji = map.get(r.messageId)!;
+    if (!byEmoji[r.emoji]) byEmoji[r.emoji] = [];
+    byEmoji[r.emoji].push(r.userId);
+  }
+  return map;
+}
+
+/** Fetch the reactions record for a single message. */
+async function fetchReactionsForMessage(
+  messageId: number,
+): Promise<Record<string, string[]>> {
+  const rows = await db
+    .select()
+    .from(messageReactionsTable)
+    .where(eq(messageReactionsTable.messageId, messageId));
+  const result: Record<string, string[]> = {};
+  for (const r of rows) {
+    if (!result[r.emoji]) result[r.emoji] = [];
+    result[r.emoji].push(r.userId);
+  }
+  return result;
+}
+
 function serializeMessage(
   m: typeof messagesTable.$inferSelect,
   partnerLastReadId: number,
+  reactions: Record<string, string[]> = {},
 ) {
   return {
     id: m.id,
     tagId: m.tagId,
     senderId: m.authorId,
     senderDisplayName: m.authorName,
-    senderLoginName: m.senderLoginName ?? null, // audit only — never shown in UI
+    senderLoginName: m.senderLoginName ?? null,
     content: m.content,
     createdAt: m.createdAt.toISOString(),
     seenByPartner: partnerLastReadId >= m.id,
+    reactions,
   };
 }
 
@@ -34,7 +78,6 @@ async function resolveDisplayName(userId: string): Promise<string> {
     .from(userProfilesTable)
     .where(eq(userProfilesTable.userId, userId))
     .limit(1);
-
   const name = rows[0]?.displayName?.trim();
   return name || "Partner";
 }
@@ -55,16 +98,14 @@ async function getPartnerLastReadId(tagId: number, userId: string): Promise<numb
 }
 
 // ---------------------------------------------------------------------------
-// GET /messages  — cursor-paginated history
+// GET /messages
 // ---------------------------------------------------------------------------
 
 router.get("/messages", requireAuth, async (req, res) => {
   const { userId } = req as AuthedRequest;
   const tagId = parseInt(req.query.tagId as string);
   const limit = parseInt((req.query.limit as string) ?? "50");
-  const before = req.query.before
-    ? parseInt(req.query.before as string)
-    : undefined;
+  const before = req.query.before ? parseInt(req.query.before as string) : undefined;
 
   if (isNaN(tagId)) {
     res.status(400).json({ error: "tagId is required" });
@@ -93,19 +134,23 @@ router.get("/messages", requireAuth, async (req, res) => {
           lastReadMessageId: sql`GREATEST(${messageReadsTable.lastReadMessageId}, ${latestId})`,
         },
       });
-
-    // Broadcast read cursor to the partner so their delete buttons update in real-time
     broadcast(tagId, { type: "read", payload: { upToId: latestId } });
   }
 
-  // Fetch partner's read cursor to compute seenByPartner on each message
-  const partnerLastReadId = await getPartnerLastReadId(tagId, userId);
+  const [partnerLastReadId, reactionsMap] = await Promise.all([
+    getPartnerLastReadId(tagId, userId),
+    fetchReactionsMap(messages.map((m) => m.id)),
+  ]);
 
-  res.json(messages.reverse().map((m) => serializeMessage(m, partnerLastReadId)));
+  res.json(
+    messages
+      .reverse()
+      .map((m) => serializeMessage(m, partnerLastReadId, reactionsMap.get(m.id) ?? {})),
+  );
 });
 
 // ---------------------------------------------------------------------------
-// GET /messages/stream  — Server-Sent Events real-time feed
+// GET /messages/stream  — SSE real-time feed
 // ---------------------------------------------------------------------------
 
 router.get("/messages/stream", requireAuth, (req, res) => {
@@ -159,10 +204,8 @@ router.post("/messages", requireAuth, async (req, res) => {
     .values({ tagId, authorId: userId, authorName, content: content.trim() })
     .returning();
 
-  // At the moment of sending, the partner hasn't seen it yet → seenByPartner = false
-  const serialized = serializeMessage(message, 0);
+  const serialized = serializeMessage(message, 0, {});
 
-  // Also advance the sender's own read cursor to cover the message they just sent
   await db
     .insert(messageReadsTable)
     .values({ tagId, userId, lastReadMessageId: message.id })
@@ -174,8 +217,57 @@ router.post("/messages", requireAuth, async (req, res) => {
     });
 
   broadcast(tagId, { type: "new", payload: serialized });
-
   res.status(201).json(serialized);
+});
+
+// ---------------------------------------------------------------------------
+// POST /messages/:messageId/react  — toggle emoji reaction
+// ---------------------------------------------------------------------------
+
+router.post("/messages/:messageId/react", requireAuth, async (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const messageId = parseInt(req.params.messageId as string);
+  const { emoji } = req.body;
+
+  if (!emoji) {
+    res.status(400).json({ error: "emoji is required" });
+    return;
+  }
+
+  const [message] = await db
+    .select()
+    .from(messagesTable)
+    .where(eq(messagesTable.id, messageId))
+    .limit(1);
+
+  if (!message) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  // Toggle: delete if exists, insert if not
+  const deleted = await db
+    .delete(messageReactionsTable)
+    .where(
+      and(
+        eq(messageReactionsTable.messageId, messageId),
+        eq(messageReactionsTable.userId, userId),
+        eq(messageReactionsTable.emoji, emoji),
+      ),
+    )
+    .returning();
+
+  if (deleted.length === 0) {
+    await db
+      .insert(messageReactionsTable)
+      .values({ messageId, userId, emoji })
+      .onConflictDoNothing();
+  }
+
+  const reactions = await fetchReactionsForMessage(messageId);
+  broadcast(message.tagId, { type: "reaction", payload: { messageId, reactions } });
+
+  res.json({ reactions });
 });
 
 // ---------------------------------------------------------------------------
@@ -202,7 +294,6 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Message not found" });
     return;
   }
-
   if (existing.authorId !== userId) {
     res.status(403).json({ error: "You can only edit your own messages" });
     return;
@@ -214,11 +305,13 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
     .where(eq(messagesTable.id, messageId))
     .returning();
 
-  const partnerLastReadId = await getPartnerLastReadId(existing.tagId, userId);
-  const serialized = serializeMessage(updated, partnerLastReadId);
-  broadcast(existing.tagId, { type: "edit", payload: { id: messageId, content: content.trim() } });
+  const [partnerLastReadId, reactions] = await Promise.all([
+    getPartnerLastReadId(existing.tagId, userId),
+    fetchReactionsForMessage(messageId),
+  ]);
 
-  res.json(serialized);
+  broadcast(existing.tagId, { type: "edit", payload: { id: messageId, content: content.trim() } });
+  res.json(serializeMessage(updated, partnerLastReadId, reactions));
 });
 
 // ---------------------------------------------------------------------------
@@ -239,13 +332,11 @@ router.delete("/messages/:messageId", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Message not found" });
     return;
   }
-
   if (existing.authorId !== userId) {
     res.status(403).json({ error: "You can only delete your own messages" });
     return;
   }
 
-  // Block deletion if the partner has already seen this message
   const partnerLastReadId = await getPartnerLastReadId(existing.tagId, userId);
   if (partnerLastReadId >= messageId) {
     res.status(403).json({ error: "Cannot delete a message that has already been seen" });
@@ -254,7 +345,6 @@ router.delete("/messages/:messageId", requireAuth, async (req, res) => {
 
   await db.delete(messagesTable).where(eq(messagesTable.id, messageId));
   broadcast(existing.tagId, { type: "delete", payload: { id: messageId } });
-
   res.status(204).end();
 });
 

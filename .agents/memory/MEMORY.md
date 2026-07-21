@@ -1,2 +1,3 @@
 - [SSE real-time messaging](sse-messaging.md) — chat uses SSE (not polling); in-process messageBus.ts broadcasts on POST; ChatView subscribes via EventSource.
 - [Onboarding flow](onboarding-flow.md) — user_profiles table gates workspace; OnboardingGate in App.tsx checks isProfileComplete; displayName sourced exclusively from user_profiles, never Clerk metadata.
+- [Reactions and comments](reactions-comments.md) — message reactions (join table), letter comments (join table), notification banner on Home.tsx; Vite module cache must be restarted after orval codegen to pick up new hooks.

@@ -5,6 +5,7 @@
  * The Social Media Room API - private dual-user digital sanctuary
  * OpenAPI spec version: 0.1.0
  */
+import type { MessageReactions } from './messageReactions';
 
 export interface Message {
   id: number;
@@ -23,4 +24,6 @@ export interface Message {
   createdAt: Date;
   /** True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it. */
   seenByPartner: boolean;
+  /** Map of emoji to list of user IDs who reacted */
+  reactions: MessageReactions;
 }

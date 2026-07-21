@@ -4,12 +4,15 @@ import {
   useSendMessage,
   useUpdateMessage,
   useDeleteMessage,
+  useReactToMessage,
   useGetMe,
   getGetMessagesQueryKey,
 } from "@workspace/api-client-react";
 import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, Pencil, Trash2, Check, X } from "lucide-react";
+
+const CHAT_EMOJIS = ["❤️", "✨", "🕯️", "☕", "🍂"];
 import { isToday, isYesterday, format } from "date-fns";
 
 interface ChatViewProps {
@@ -39,6 +42,7 @@ interface ChatStreamHandlers {
   onEdit: (payload: { id: number; content: string }) => void;
   onDelete: (payload: { id: number }) => void;
   onRead: (payload: { upToId: number }) => void;
+  onReaction: (payload: { messageId: number; reactions: Record<string, string[]> }) => void;
 }
 
 function useChatStream(
@@ -66,6 +70,9 @@ function useChatStream(
     es.addEventListener("read", (e: MessageEvent) => {
       try { handlersRef.current.onRead(JSON.parse(e.data)); } catch { /* ignore */ }
     });
+    es.addEventListener("reaction", (e: MessageEvent) => {
+      try { handlersRef.current.onReaction(JSON.parse(e.data)); } catch { /* ignore */ }
+    });
     es.onerror = () => setStatus("error");
     return () => es.close();
   }, [tagId]);
@@ -89,6 +96,7 @@ export default function ChatView({ tag }: ChatViewProps) {
   const sendMutation    = useSendMessage();
   const updateMutation  = useUpdateMessage();
   const deleteMutation  = useDeleteMessage();
+  const reactMutation   = useReactToMessage();
   const { data: me }    = useGetMe();
 
   // Compose input
@@ -164,12 +172,39 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
+  // Someone reacted — update reactions on that message in the cache
+  const handleReactionSSE = useCallback(
+    ({ messageId, reactions }: { messageId: number; reactions: Record<string, string[]> }) => {
+      qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
+        prev?.map((m) => (m.id === messageId ? { ...m, reactions } : m)) ?? prev,
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tag.id],
+  );
+
   const streamStatus = useChatStream(tag.id, {
     onNew: handleNew,
     onEdit: handleEditSSE,
     onDelete: handleDeleteSSE,
     onRead: handleReadSSE,
+    onReaction: handleReactionSSE,
   });
+
+  // ── React ─────────────────────────────────────────────────────────────────
+
+  const handleReact = (messageId: number, emoji: string) => {
+    reactMutation.mutate(
+      { messageId, data: { emoji } },
+      {
+        onSuccess: ({ reactions }) => {
+          qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
+            prev?.map((m) => (m.id === messageId ? { ...m, reactions } : m)) ?? prev,
+          );
+        },
+      },
+    );
+  };
 
   // ── Send ──────────────────────────────────────────────────────────────────
 
@@ -398,6 +433,61 @@ export default function ChatView({ tag }: ChatViewProps) {
                       </div>
                     )}
                   </div>
+
+                  {/* Reactions row — shown below the bubble */}
+                  {(() => {
+                    const reactions = (msg.reactions ?? {}) as Record<string, string[]>;
+                    const hasReactions = Object.keys(reactions).some(e => (reactions[e]?.length ?? 0) > 0);
+                    const myUserId = me?.id ?? "";
+                    return (
+                      <div className={`flex flex-col gap-0.5 max-w-[82%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
+                        {/* Reaction pills */}
+                        {hasReactions && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {Object.entries(reactions).map(([emoji, users]) =>
+                              users.length > 0 ? (
+                                <button
+                                  key={emoji}
+                                  onClick={() => handleReact(msg.id, emoji)}
+                                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all ${
+                                    users.includes(myUserId)
+                                      ? "bg-primary/20 border-primary/40 text-foreground"
+                                      : "bg-muted/60 border-border/40 text-foreground/70 hover:bg-primary/10 hover:border-primary/30"
+                                  }`}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="text-[11px] font-medium">{users.length}</span>
+                                </button>
+                              ) : null,
+                            )}
+                          </div>
+                        )}
+
+                        {/* Emoji picker — only for partner's messages */}
+                        {!isMe && !isEditing && (
+                          <div className="flex items-center gap-0.5 mt-0.5">
+                            {CHAT_EMOJIS.map((emoji) => {
+                              const alreadyReacted = ((reactions[emoji] ?? []) as string[]).includes(myUserId);
+                              return (
+                                <button
+                                  key={emoji}
+                                  onClick={() => handleReact(msg.id, emoji)}
+                                  className={`text-base rounded-full w-7 h-7 flex items-center justify-center transition-all ${
+                                    alreadyReacted
+                                      ? "bg-primary/20 scale-110"
+                                      : "opacity-30 hover:opacity-100 hover:bg-muted"
+                                  }`}
+                                  title={`React with ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
