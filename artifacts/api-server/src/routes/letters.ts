@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { eq, sql, inArray, and, desc } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
+import { getOrCreateProfile } from "./profile";
 
 const router = Router();
 
@@ -98,8 +99,9 @@ router.post("/letters", requireAuth, async (req, res) => {
     return;
   }
 
-  // Get author display name (userId used as fallback)
-  const authorName = req.body.authorName || "Partner";
+  // Resolve display name server-side from user_profiles — never trust the client body
+  const profile = await getOrCreateProfile(userId);
+  const authorName = profile.displayName ?? userId;
 
   const [letter] = await db
     .insert(lettersTable)
