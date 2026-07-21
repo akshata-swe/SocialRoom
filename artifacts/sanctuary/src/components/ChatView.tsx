@@ -23,18 +23,15 @@ interface ChatViewProps {
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
   const diffSeconds = (Date.now() - date.getTime()) / 1000;
-
   if (diffSeconds < 60) return "Just now";
-
   const timeStr = format(date, "h:mm a");
-
   if (isToday(date)) return timeStr;
   if (isYesterday(date)) return `Yesterday at ${timeStr}`;
   return format(date, "MMM d") + ` at ${timeStr}`;
 }
 
 // ---------------------------------------------------------------------------
-// SSE hook — real-time message subscription
+// SSE hook
 // ---------------------------------------------------------------------------
 
 interface ChatStreamHandlers {
@@ -47,41 +44,25 @@ function useChatStream(
   tagId: number,
   handlers: ChatStreamHandlers,
 ): "connecting" | "open" | "error" {
-  const [status, setStatus] = useState<"connecting" | "open" | "error">(
-    "connecting",
-  );
+  const [status, setStatus] = useState<"connecting" | "open" | "error">("connecting");
   const handlersRef = useRef(handlers);
-  useEffect(() => {
-    handlersRef.current = handlers;
-  });
+  useEffect(() => { handlersRef.current = handlers; });
 
   useEffect(() => {
     setStatus("connecting");
-    const url = `/api/messages/stream?tagId=${tagId}`;
-    const es = new EventSource(url, { withCredentials: true });
+    const es = new EventSource(`/api/messages/stream?tagId=${tagId}`, { withCredentials: true });
 
     es.addEventListener("connected", () => setStatus("open"));
-
     es.addEventListener("new", (e: MessageEvent) => {
-      try {
-        handlersRef.current.onNew(JSON.parse(e.data) as Message);
-      } catch { /* ignore */ }
+      try { handlersRef.current.onNew(JSON.parse(e.data) as Message); } catch { /* ignore */ }
     });
-
     es.addEventListener("edit", (e: MessageEvent) => {
-      try {
-        handlersRef.current.onEdit(JSON.parse(e.data) as { id: number; content: string });
-      } catch { /* ignore */ }
+      try { handlersRef.current.onEdit(JSON.parse(e.data)); } catch { /* ignore */ }
     });
-
     es.addEventListener("delete", (e: MessageEvent) => {
-      try {
-        handlersRef.current.onDelete(JSON.parse(e.data) as { id: number });
-      } catch { /* ignore */ }
+      try { handlersRef.current.onDelete(JSON.parse(e.data)); } catch { /* ignore */ }
     });
-
     es.onerror = () => setStatus("error");
-
     return () => es.close();
   }, [tagId]);
 
@@ -97,31 +78,34 @@ export default function ChatView({ tag }: ChatViewProps) {
   const MSG_PARAMS = { tagId: tag.id, limit: 100 } as const;
   const messagesQueryKey = getGetMessagesQueryKey(MSG_PARAMS);
 
-  const { data: messages, isLoading } = useGetMessages(
-    MSG_PARAMS,
-    { query: { enabled: !!tag.id } },
-  );
+  const { data: messages, isLoading } = useGetMessages(MSG_PARAMS, {
+    query: { enabled: !!tag.id },
+  });
 
-  const sendMessageMutation = useSendMessage();
-  const updateMessageMutation = useUpdateMessage();
-  const deleteMessageMutation = useDeleteMessage();
-  const { data: me } = useGetMe();
+  const sendMutation    = useSendMessage();
+  const updateMutation  = useUpdateMessage();
+  const deleteMutation  = useDeleteMessage();
+  const { data: me }    = useGetMe();
 
-  const [input, setInput] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  // Compose input
+  const [input, setInput]         = useState("");
+  const textareaRef               = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef            = useRef<HTMLDivElement>(null);
+
+  // Edit state
+  const [editingId, setEditingId]     = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const editInputRef                  = useRef<HTMLTextAreaElement>(null);
+
+  // Delete confirm state (two-step)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const editInputRef = useRef<HTMLTextAreaElement>(null);
-
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages?.length]);
 
-  // Focus edit input when entering edit mode
+  // Focus edit textarea when entering edit mode
   useEffect(() => {
     if (editingId !== null) {
       editInputRef.current?.focus();
@@ -129,9 +113,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     }
   }, [editingId]);
 
-  // ---------------------------------------------------------------------------
-  // SSE cache update handlers
-  // ---------------------------------------------------------------------------
+  // ── SSE handlers ──────────────────────────────────────────────────────────
 
   const handleNew = useCallback(
     (incoming: Message) => {
@@ -145,7 +127,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  const handleEdit = useCallback(
+  const handleEditSSE = useCallback(
     ({ id, content }: { id: number; content: string }) => {
       qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
         prev?.map((m) => (m.id === id ? { ...m, content } : m)) ?? prev,
@@ -155,7 +137,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  const handleDelete = useCallback(
+  const handleDeleteSSE = useCallback(
     ({ id }: { id: number }) => {
       qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
         prev?.filter((m) => m.id !== id) ?? prev,
@@ -167,13 +149,11 @@ export default function ChatView({ tag }: ChatViewProps) {
 
   const streamStatus = useChatStream(tag.id, {
     onNew: handleNew,
-    onEdit: handleEdit,
-    onDelete: handleDelete,
+    onEdit: handleEditSSE,
+    onDelete: handleDeleteSSE,
   });
 
-  // ---------------------------------------------------------------------------
-  // Send
-  // ---------------------------------------------------------------------------
+  // ── Send ──────────────────────────────────────────────────────────────────
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -186,8 +166,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     e.preventDefault();
     const text = input.trim();
     if (!text || !me) return;
-
-    sendMessageMutation.mutate(
+    sendMutation.mutate(
       { data: { tagId: tag.id, content: text } },
       {
         onSuccess: (newMsg) => {
@@ -203,14 +182,12 @@ export default function ChatView({ tag }: ChatViewProps) {
     );
   };
 
-  // ---------------------------------------------------------------------------
-  // Edit
-  // ---------------------------------------------------------------------------
+  // ── Edit ──────────────────────────────────────────────────────────────────
 
   const startEdit = (msg: Message) => {
+    setConfirmDeleteId(null);
     setEditingId(msg.id);
     setEditContent(msg.content);
-    setConfirmDeleteId(null);
   };
 
   const cancelEdit = () => {
@@ -221,51 +198,47 @@ export default function ChatView({ tag }: ChatViewProps) {
   const submitEdit = (messageId: number) => {
     const trimmed = editContent.trim();
     if (!trimmed) return;
-    updateMessageMutation.mutate(
+    updateMutation.mutate(
       { messageId, data: { content: trimmed } },
       {
         onSuccess: () => {
-          // SSE will also broadcast edit; update optimistically for sender
           qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
             prev?.map((m) => (m.id === messageId ? { ...m, content: trimmed } : m)) ?? prev,
           );
-          setEditingId(null);
-          setEditContent("");
+          cancelEdit();
         },
       },
     );
   };
 
-  // ---------------------------------------------------------------------------
-  // Delete
-  // ---------------------------------------------------------------------------
+  // ── Delete ────────────────────────────────────────────────────────────────
 
-  const handleDeleteClick = (messageId: number) => {
-    if (confirmDeleteId === messageId) {
-      // Optimistically remove from cache immediately
-      qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
-        prev?.filter((m) => m.id !== messageId) ?? prev,
-      );
-      deleteMessageMutation.mutate({ messageId });
-      setConfirmDeleteId(null);
-    } else {
+  const handleDelete = (messageId: number) => {
+    if (confirmDeleteId !== messageId) {
       setConfirmDeleteId(messageId);
+      return;
     }
+    // Confirmed — optimistic remove then fire
+    qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
+      prev?.filter((m) => m.id !== messageId) ?? prev,
+    );
+    deleteMutation.mutate({ messageId });
+    setConfirmDeleteId(null);
   };
 
-  // ---------------------------------------------------------------------------
-  // Render helpers
-  // ---------------------------------------------------------------------------
+  // ── Render helpers ────────────────────────────────────────────────────────
 
   function showSenderHeader(idx: number): boolean {
     if (!messages || idx === 0) return true;
     return messages[idx - 1].senderId !== messages[idx].senderId;
   }
 
+  // ── JSX ───────────────────────────────────────────────────────────────────
+
   return (
     <div
       className="flex flex-col h-full w-full max-w-4xl mx-auto"
-      onClick={() => { setConfirmDeleteId(null); setHoveredId(null); }}
+      onClick={() => setConfirmDeleteId(null)}
     >
       {/* Header */}
       <div className="shrink-0 h-16 flex items-center justify-between px-6 md:px-8 border-b border-border/30 bg-background/50 backdrop-blur-sm z-10">
@@ -276,15 +249,11 @@ export default function ChatView({ tag }: ChatViewProps) {
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 font-light select-none">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              streamStatus === "open"
-                ? "bg-emerald-500"
-                : streamStatus === "error"
-                  ? "bg-amber-500"
-                  : "bg-muted-foreground/40 animate-pulse"
-            }`}
-          />
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            streamStatus === "open" ? "bg-emerald-500"
+              : streamStatus === "error" ? "bg-amber-500"
+              : "bg-muted-foreground/40 animate-pulse"
+          }`} />
           {streamStatus === "open" ? "Live" : streamStatus === "error" ? "Reconnecting…" : "Connecting…"}
         </div>
       </div>
@@ -302,26 +271,23 @@ export default function ChatView({ tag }: ChatViewProps) {
         ) : (
           <div className="flex flex-col gap-1 justify-end min-h-full">
             {messages.map((msg, idx) => {
-              const isMe = msg.senderId === me?.id;
-              const showHeader = showSenderHeader(idx);
+              const isMe         = msg.senderId === me?.id;
+              const showHeader   = showSenderHeader(idx);
               const isLastInGroup =
                 idx === messages.length - 1 ||
                 messages[idx + 1].senderId !== msg.senderId;
-              const isEditing = editingId === msg.id;
-              const isHovered = hoveredId === msg.id;
-              const isConfirmingDelete = confirmDeleteId === msg.id;
+              const isEditing         = editingId === msg.id;
+              const isConfirmDelete   = confirmDeleteId === msg.id;
 
               return (
                 <div
                   key={msg.id}
-                  className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-0.5"} max-w-[82%] ${isMe ? "self-end" : "self-start"}`}
-                  onMouseEnter={() => setHoveredId(msg.id)}
-                  onMouseLeave={() => { if (!isConfirmingDelete) setHoveredId(null); }}
+                  className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-0.5"} ${isMe ? "self-end" : "self-start"} w-full`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Sender name + timestamp */}
                   {showHeader && (
-                    <div className={`flex items-baseline gap-2 mb-1.5 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                    <div className={`flex items-baseline gap-2 mb-1.5 px-1 max-w-[82%] ${isMe ? "self-end flex-row-reverse" : "self-start flex-row"}`}>
                       <span className="text-xs font-medium tracking-wide text-foreground/70">
                         {msg.senderDisplayName}
                       </span>
@@ -331,12 +297,12 @@ export default function ChatView({ tag }: ChatViewProps) {
                     </div>
                   )}
 
-                  {/* Bubble + action toolbar */}
-                  <div className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                  {/* Bubble row */}
+                  <div className={`flex items-end gap-2 max-w-[82%] ${isMe ? "self-end flex-row-reverse" : "self-start flex-row"}`}>
 
-                    {/* Bubble / edit mode */}
+                    {/* Bubble or edit textarea */}
                     {isEditing ? (
-                      <div className="flex flex-col gap-2 min-w-[200px] max-w-full">
+                      <div className="flex flex-col gap-2 w-full min-w-[220px]">
                         <textarea
                           ref={editInputRef}
                           value={editContent}
@@ -345,67 +311,63 @@ export default function ChatView({ tag }: ChatViewProps) {
                             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(msg.id); }
                             if (e.key === "Escape") cancelEdit();
                           }}
-                          className="w-full bg-card border border-primary/50 rounded-2xl px-4 py-3 text-[15px] leading-relaxed text-foreground font-light resize-none focus:outline-none focus:ring-1 focus:ring-primary/30 custom-scrollbar"
-                          rows={Math.min(editContent.split("\n").length + 1, 6)}
+                          className="w-full bg-card border border-primary/40 rounded-2xl px-4 py-3 text-[15px] leading-relaxed text-foreground font-light resize-none focus:outline-none focus:ring-1 focus:ring-primary/30 custom-scrollbar"
+                          rows={Math.max(2, editContent.split("\n").length)}
                         />
                         <div className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
                           <button
                             onClick={() => submitEdit(msg.id)}
-                            disabled={!editContent.trim() || updateMessageMutation.isPending}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors"
+                            disabled={!editContent.trim() || updateMutation.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors"
                           >
-                            <Check size={12} />
+                            <Check size={12} strokeWidth={2.5} />
                             Save
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-muted-foreground text-xs hover:text-foreground transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-muted-foreground text-xs hover:text-foreground transition-colors"
                           >
-                            <X size={12} />
+                            <X size={12} strokeWidth={2.5} />
                             Cancel
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div
-                        className={`
-                          px-5 py-3 text-[15px] leading-relaxed shadow-sm font-light
-                          ${isMe
-                            ? `bg-primary text-primary-foreground ${isLastInGroup ? "rounded-2xl rounded-tr-sm" : "rounded-2xl"}`
-                            : `bg-card border border-border/60 text-foreground ${isLastInGroup ? "rounded-2xl rounded-tl-sm" : "rounded-2xl"}`
-                          }
-                        `}
-                      >
+                      <div className={`
+                        px-5 py-3 text-[15px] leading-relaxed shadow-sm font-light
+                        ${isMe
+                          ? `bg-primary text-primary-foreground ${isLastInGroup ? "rounded-2xl rounded-tr-sm" : "rounded-2xl"}`
+                          : `bg-card border border-border/60 text-foreground ${isLastInGroup ? "rounded-2xl rounded-tl-sm" : "rounded-2xl"}`
+                        }
+                      `}>
                         {msg.content}
                       </div>
                     )}
 
-                    {/* Action toolbar — visible on hover, hidden during editing */}
-                    {!isEditing && (isHovered || isConfirmingDelete) && (
-                      <div className={`flex items-center gap-0.5 shrink-0 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                        {/* Edit — own messages only */}
-                        {isMe && (
-                          <button
-                            onClick={() => startEdit(msg)}
-                            className="p-1.5 rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-all"
-                            title="Edit message"
-                          >
-                            <Pencil size={13} strokeWidth={1.75} />
-                          </button>
-                        )}
-
-                        {/* Delete */}
+                    {/* Action buttons — only for own messages, always visible but subtle */}
+                    {isMe && !isEditing && (
+                      <div className="flex items-center gap-0.5 shrink-0 pb-0.5">
+                        {/* Edit */}
                         <button
-                          onClick={() => handleDeleteClick(msg.id)}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all
-                            ${isConfirmingDelete
+                          onClick={() => startEdit(msg)}
+                          className="p-1.5 rounded-full text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
+                          title="Edit"
+                        >
+                          <Pencil size={13} strokeWidth={1.75} />
+                        </button>
+
+                        {/* Delete — two-step confirm */}
+                        <button
+                          onClick={() => handleDelete(msg.id)}
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            isConfirmDelete
                               ? "bg-destructive text-destructive-foreground"
-                              : "text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10"
-                            }`}
-                          title={isConfirmingDelete ? "Click again to confirm" : "Delete message"}
+                              : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
+                          }`}
+                          title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
                         >
                           <Trash2 size={13} strokeWidth={1.75} />
-                          {isConfirmingDelete && <span>Delete?</span>}
+                          {isConfirmDelete && <span>Delete?</span>}
                         </button>
                       </div>
                     )}
@@ -413,7 +375,6 @@ export default function ChatView({ tag }: ChatViewProps) {
                 </div>
               );
             })}
-
             <div ref={messagesEndRef} className="h-2" />
           </div>
         )}
@@ -433,23 +394,19 @@ export default function ChatView({ tag }: ChatViewProps) {
             className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:outline-none focus:ring-0 px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 font-light custom-scrollbar"
             rows={1}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(e);
-              }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
             }}
           />
           <button
             type="submit"
-            disabled={!input.trim() || sendMessageMutation.isPending}
+            disabled={!input.trim() || sendMutation.isPending}
             className="shrink-0 p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary transition-all flex items-center justify-center mb-0.5 mr-0.5"
             data-testid="button-send-message"
           >
-            {sendMessageMutation.isPending ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Send size={18} className="-ml-0.5" />
-            )}
+            {sendMutation.isPending
+              ? <Loader2 size={18} className="animate-spin" />
+              : <Send size={18} className="-ml-0.5" />
+            }
           </button>
         </form>
         <p className="text-center text-[10px] text-muted-foreground/30 mt-2 font-light">
