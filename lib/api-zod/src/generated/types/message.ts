@@ -21,4 +21,6 @@ export interface Message {
   content: string;
   /** Server-authoritative UTC timestamp */
   createdAt: Date;
+  /** True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it. */
+  seenByPartner: boolean;
 }

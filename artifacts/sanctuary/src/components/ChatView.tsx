@@ -38,6 +38,7 @@ interface ChatStreamHandlers {
   onNew: (msg: Message) => void;
   onEdit: (payload: { id: number; content: string }) => void;
   onDelete: (payload: { id: number }) => void;
+  onRead: (payload: { upToId: number }) => void;
 }
 
 function useChatStream(
@@ -61,6 +62,9 @@ function useChatStream(
     });
     es.addEventListener("delete", (e: MessageEvent) => {
       try { handlersRef.current.onDelete(JSON.parse(e.data)); } catch { /* ignore */ }
+    });
+    es.addEventListener("read", (e: MessageEvent) => {
+      try { handlersRef.current.onRead(JSON.parse(e.data)); } catch { /* ignore */ }
     });
     es.onerror = () => setStatus("error");
     return () => es.close();
@@ -147,10 +151,24 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
+  // Partner opened the chat and their cursor advanced — mark matching messages as seen
+  const handleReadSSE = useCallback(
+    ({ upToId }: { upToId: number }) => {
+      qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
+        prev?.map((m) =>
+          m.id <= upToId ? { ...m, seenByPartner: true } : m,
+        ) ?? prev,
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tag.id],
+  );
+
   const streamStatus = useChatStream(tag.id, {
     onNew: handleNew,
     onEdit: handleEditSSE,
     onDelete: handleDeleteSSE,
+    onRead: handleReadSSE,
   });
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -356,19 +374,27 @@ export default function ChatView({ tag }: ChatViewProps) {
                           <Pencil size={13} strokeWidth={1.75} />
                         </button>
 
-                        {/* Delete — two-step confirm */}
-                        <button
-                          onClick={() => handleDelete(msg.id)}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
-                            isConfirmDelete
-                              ? "bg-destructive text-destructive-foreground"
-                              : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
-                          }`}
-                          title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
-                        >
-                          <Trash2 size={13} strokeWidth={1.75} />
-                          {isConfirmDelete && <span>Delete?</span>}
-                        </button>
+                        {/* Delete — hidden once partner has seen the message */}
+                        {!msg.seenByPartner ? (
+                          <button
+                            onClick={() => handleDelete(msg.id)}
+                            className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              isConfirmDelete
+                                ? "bg-destructive text-destructive-foreground"
+                                : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
+                            }`}
+                            title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
+                          >
+                            <Trash2 size={13} strokeWidth={1.75} />
+                            {isConfirmDelete && <span>Delete?</span>}
+                          </button>
+                        ) : (
+                          /* Subtle "seen" dot so the sender knows why delete is gone */
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-1 self-center"
+                            title="Seen — cannot be deleted"
+                          />
+                        )}
                       </div>
                     )}
                   </div>

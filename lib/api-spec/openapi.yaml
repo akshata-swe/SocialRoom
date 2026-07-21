@@ -761,6 +761,9 @@ components:
           type: string
           format: date-time
           description: Server-authoritative UTC timestamp
+        seenByPartner:
+          type: boolean
+          description: True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.
       required:
         - id
         - tagId
@@ -768,6 +771,7 @@ components:
         - senderDisplayName
         - content
         - createdAt
+        - seenByPartner
 
     MessageInput:
       type: object

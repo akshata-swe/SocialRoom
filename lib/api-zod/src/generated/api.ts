@@ -340,7 +340,8 @@ export const GetMessagesResponseItem = zod.object({
   "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
-  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
 })
 export const GetMessagesResponse = zod.array(GetMessagesResponseItem)
 
@@ -363,7 +364,8 @@ export const SendMessageResponse = zod.object({
   "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
-  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
 })
 
 
@@ -388,7 +390,8 @@ export const UpdateMessageResponse = zod.object({
   "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
   "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
   "content": zod.string(),
-  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
+  "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.')
 })
 
 

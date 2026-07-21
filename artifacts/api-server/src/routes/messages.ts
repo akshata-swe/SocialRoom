@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, messageReadsTable, userProfilesTable } from "@workspace/db";
-import { eq, lt, desc, and, sql } from "drizzle-orm";
+import { eq, lt, ne, desc, and, sql } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
 import { broadcast, subscribe } from "../lib/messageBus";
 
@@ -11,15 +11,19 @@ const router = Router();
 // Helpers
 // ---------------------------------------------------------------------------
 
-function serializeMessage(m: typeof messagesTable.$inferSelect) {
+function serializeMessage(
+  m: typeof messagesTable.$inferSelect,
+  partnerLastReadId: number,
+) {
   return {
     id: m.id,
     tagId: m.tagId,
     senderId: m.authorId,
     senderDisplayName: m.authorName,
-    senderLoginName: m.senderLoginName ?? null,   // audit only — never shown in UI
+    senderLoginName: m.senderLoginName ?? null, // audit only — never shown in UI
     content: m.content,
     createdAt: m.createdAt.toISOString(),
+    seenByPartner: partnerLastReadId >= m.id,
   };
 }
 
@@ -33,6 +37,21 @@ async function resolveDisplayName(userId: string): Promise<string> {
 
   const name = rows[0]?.displayName?.trim();
   return name || "Partner";
+}
+
+/** Get the partner's last-read message ID for a tag (any user other than userId). */
+async function getPartnerLastReadId(tagId: number, userId: string): Promise<number> {
+  const rows = await db
+    .select({ lastReadMessageId: messageReadsTable.lastReadMessageId })
+    .from(messageReadsTable)
+    .where(
+      and(
+        eq(messageReadsTable.tagId, tagId),
+        ne(messageReadsTable.userId, userId),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.lastReadMessageId ?? 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,9 +93,15 @@ router.get("/messages", requireAuth, async (req, res) => {
           lastReadMessageId: sql`GREATEST(${messageReadsTable.lastReadMessageId}, ${latestId})`,
         },
       });
+
+    // Broadcast read cursor to the partner so their delete buttons update in real-time
+    broadcast(tagId, { type: "read", payload: { upToId: latestId } });
   }
 
-  res.json(messages.reverse().map(serializeMessage));
+  // Fetch partner's read cursor to compute seenByPartner on each message
+  const partnerLastReadId = await getPartnerLastReadId(tagId, userId);
+
+  res.json(messages.reverse().map((m) => serializeMessage(m, partnerLastReadId)));
 });
 
 // ---------------------------------------------------------------------------
@@ -115,7 +140,7 @@ router.get("/messages/stream", requireAuth, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /messages  — send a message
+// POST /messages
 // ---------------------------------------------------------------------------
 
 router.post("/messages", requireAuth, async (req, res) => {
@@ -127,32 +152,17 @@ router.post("/messages", requireAuth, async (req, res) => {
     return;
   }
 
-  // displayName always comes from user_profiles — the name the user explicitly
-  // chose in onboarding. Never trust client-supplied display names.
-  const senderDisplayName = await resolveDisplayName(userId);
-
-  // Resolve login email for auditing (never shown in UI)
-  let senderLoginName: string | null = null;
-  try {
-    const { createClerkClient } = await import("@clerk/express");
-    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-    const clerkUser = await clerk.users.getUser(userId);
-    senderLoginName = clerkUser.emailAddresses[0]?.emailAddress ?? null;
-  } catch {
-    // Non-fatal
-  }
+  const authorName = await resolveDisplayName(userId);
 
   const [message] = await db
     .insert(messagesTable)
-    .values({
-      tagId,
-      authorId: userId,
-      authorName: senderDisplayName,
-      senderLoginName,
-      content: content.trim(),
-    })
+    .values({ tagId, authorId: userId, authorName, content: content.trim() })
     .returning();
 
+  // At the moment of sending, the partner hasn't seen it yet → seenByPartner = false
+  const serialized = serializeMessage(message, 0);
+
+  // Also advance the sender's own read cursor to cover the message they just sent
   await db
     .insert(messageReadsTable)
     .values({ tagId, userId, lastReadMessageId: message.id })
@@ -163,14 +173,13 @@ router.post("/messages", requireAuth, async (req, res) => {
       },
     });
 
-  const serialized = serializeMessage(message);
   broadcast(tagId, { type: "new", payload: serialized });
 
   res.status(201).json(serialized);
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /messages/:messageId — edit message content
+// PATCH /messages/:messageId
 // ---------------------------------------------------------------------------
 
 router.patch("/messages/:messageId", requireAuth, async (req, res) => {
@@ -205,7 +214,8 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
     .where(eq(messagesTable.id, messageId))
     .returning();
 
-  const serialized = serializeMessage(updated);
+  const partnerLastReadId = await getPartnerLastReadId(existing.tagId, userId);
+  const serialized = serializeMessage(updated, partnerLastReadId);
   broadcast(existing.tagId, { type: "edit", payload: { id: messageId, content: content.trim() } });
 
   res.json(serialized);
@@ -216,20 +226,34 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 
 router.delete("/messages/:messageId", requireAuth, async (req, res) => {
+  const { userId } = req as AuthedRequest;
   const messageId = parseInt(req.params.messageId as string);
 
-  // Look up tagId before deleting so we can broadcast
   const [existing] = await db
-    .select({ tagId: messagesTable.tagId })
+    .select()
     .from(messagesTable)
     .where(eq(messagesTable.id, messageId))
     .limit(1);
 
-  await db.delete(messagesTable).where(eq(messagesTable.id, messageId));
-
-  if (existing) {
-    broadcast(existing.tagId, { type: "delete", payload: { id: messageId } });
+  if (!existing) {
+    res.status(404).json({ error: "Message not found" });
+    return;
   }
+
+  if (existing.authorId !== userId) {
+    res.status(403).json({ error: "You can only delete your own messages" });
+    return;
+  }
+
+  // Block deletion if the partner has already seen this message
+  const partnerLastReadId = await getPartnerLastReadId(existing.tagId, userId);
+  if (partnerLastReadId >= messageId) {
+    res.status(403).json({ error: "Cannot delete a message that has already been seen" });
+    return;
+  }
+
+  await db.delete(messagesTable).where(eq(messagesTable.id, messageId));
+  broadcast(existing.tagId, { type: "delete", payload: { id: messageId } });
 
   res.status(204).end();
 });

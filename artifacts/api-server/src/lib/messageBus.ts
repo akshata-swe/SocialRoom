@@ -13,7 +13,8 @@
 export type BusEvent =
   | { type: "new"; payload: object }
   | { type: "edit"; payload: { id: number; content: string } }
-  | { type: "delete"; payload: { id: number } };
+  | { type: "delete"; payload: { id: number } }
+  | { type: "read"; payload: { upToId: number } };
 
 type Listener = (event: BusEvent) => void;
 
