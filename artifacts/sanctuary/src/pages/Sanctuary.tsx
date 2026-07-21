@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Sidebar from "../components/Sidebar";
 import PostboxView from "../components/PostboxView";
 import ChatView from "../components/ChatView";
 import LetterComposer from "../components/LetterComposer";
 import LetterReader from "../components/LetterReader";
+import IdleOverlay from "../components/IdleOverlay";
+import { useIdleTimer } from "../hooks/useIdleTimer";
 import { Tag } from "@workspace/api-client-react";
 import { Menu } from "lucide-react";
+
+const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 export type ViewState = "postbox" | "chat" | "composer" | "reader" | "empty";
 
@@ -14,6 +18,13 @@ export default function Sanctuary() {
   const [view, setView] = useState<ViewState>("empty");
   const [activeLetterId, setActiveLetterId] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isIdle, setIsIdle] = useState(false);
+
+  useIdleTimer({
+    timeoutMs: IDLE_TIMEOUT_MS,
+    onIdle: useCallback(() => setIsIdle(true), []),
+    onActive: useCallback(() => setIsIdle(false), []),
+  });
 
   const handleSelectTag = (tag: Tag) => {
     setActiveTag(tag);
@@ -104,6 +115,9 @@ export default function Sanctuary() {
           )}
         </div>
       </main>
+
+      {/* Idle screen — shown after 2 min of no interaction */}
+      {isIdle && <IdleOverlay onResume={() => setIsIdle(false)} />}
     </div>
   );
 }
