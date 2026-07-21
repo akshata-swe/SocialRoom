@@ -195,6 +195,11 @@ export interface MessageInput {
   content: string;
 }
 
+export interface MessageUpdateInput {
+  /** @minLength 1 */
+  content: string;
+}
+
 export interface UploadResult {
   url: string;
   filename: string;

@@ -1,22 +1,25 @@
 /**
  * In-memory SSE pub/sub bus.
  *
- * When a message is saved to the DB, the POST handler calls `broadcast(tagId, msg)`.
- * All active SSE connections for that tagId receive the payload instantly.
+ * Supports three event types so the SSE route can emit typed events:
+ *   - "new"    → a new message was saved
+ *   - "edit"   → a message's content was changed
+ *   - "delete" → a message was removed
  *
- * No external dependency — this works for a two-user app where both tabs are
- * connected to the same server process. For multi-instance deploys, swap this
- * for Redis pub/sub using the same interface.
+ * The SSE handler writes: `event: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`
+ * The frontend EventSource subscribes with `es.addEventListener("new", ...)` etc.
  */
 
-type Listener = (message: object) => void;
+export type BusEvent =
+  | { type: "new"; payload: object }
+  | { type: "edit"; payload: { id: number; content: string } }
+  | { type: "delete"; payload: { id: number } };
+
+type Listener = (event: BusEvent) => void;
 
 const subscribers = new Map<number, Set<Listener>>();
 
-/**
- * Subscribe to new messages for a given tagId.
- * Returns an unsubscribe function; call it when the SSE connection closes.
- */
+/** Subscribe to events for a given tagId. Returns an unsubscribe fn. */
 export function subscribe(tagId: number, listener: Listener): () => void {
   if (!subscribers.has(tagId)) {
     subscribers.set(tagId, new Set());
@@ -32,9 +35,7 @@ export function subscribe(tagId: number, listener: Listener): () => void {
   };
 }
 
-/**
- * Broadcast a newly saved message to all SSE clients listening on tagId.
- */
-export function broadcast(tagId: number, message: object): void {
-  subscribers.get(tagId)?.forEach((listener) => listener(message));
+/** Broadcast a typed event to all SSE clients listening on tagId. */
+export function broadcast(tagId: number, event: BusEvent): void {
+  subscribers.get(tagId)?.forEach((listener) => listener(event));
 }

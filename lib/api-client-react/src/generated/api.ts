@@ -28,6 +28,7 @@ import type {
   LetterSummary,
   Message,
   MessageInput,
+  MessageUpdateInput,
   ProfileRecord,
   ProfileUpdateInput,
   ReactionInput,
@@ -1332,6 +1333,78 @@ export const useSendMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getUpdateMessageUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/messages/${messageId}`
+}
+
+/**
+ * @summary Edit a message's content
+ */
+export const updateMessage = async (messageId: number,
+    messageUpdateInput: MessageUpdateInput, options?: RequestInit): Promise<Message> => {
+
+  return customFetch<Message>(getUpdateMessageUrl(messageId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(messageUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<MessageUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<MessageUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMessage>>, {messageId: number;data: BodyType<MessageUpdateInput>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  updateMessage(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMessageMutationResult = NonNullable<Awaited<ReturnType<typeof updateMessage>>>
+    export type UpdateMessageMutationBody = BodyType<MessageUpdateInput>
+    export type UpdateMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Edit a message's content
+ */
+export const useUpdateMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<MessageUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMessage>>,
+        TError,
+        {messageId: number;data: BodyType<MessageUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMessageMutationOptions(options));
     }
 
 export const getDeleteMessageUrl = (messageId: number,) => {

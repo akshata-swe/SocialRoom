@@ -368,6 +368,31 @@ export const SendMessageResponse = zod.object({
 
 
 /**
+ * @summary Edit a message's content
+ */
+export const UpdateMessageParams = zod.object({
+  "messageId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateMessageBody = zod.object({
+  "content": zod.string().min(1)
+})
+
+export const UpdateMessageResponse = zod.object({
+  "id": zod.number(),
+  "tagId": zod.number(),
+  "senderId": zod.string().describe('Unique Clerk user ID of the sender'),
+  "senderDisplayName": zod.string().describe('Preferred display name shown in the chat UI for both parties'),
+  "senderLoginName": zod.string().nullish().describe('System login email stored for auditing — never rendered in the UI'),
+  "content": zod.string(),
+  "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp')
+})
+
+
+/**
  * @summary Delete a message
  */
 export const DeleteMessageParams = zod.object({

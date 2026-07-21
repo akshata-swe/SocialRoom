@@ -333,6 +333,29 @@ paths:
                 $ref: "#/components/schemas/Message"
 
   /messages/{messageId}:
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Edit a message's content
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageUpdateInput"
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
     delete:
       operationId: deleteMessage
       tags: [messages]
@@ -756,6 +779,15 @@ components:
           minLength: 1
       required:
         - tagId
+        - content
+
+    MessageUpdateInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+      required:
         - content
 
     UploadResult:

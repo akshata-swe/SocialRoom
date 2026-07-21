@@ -1,5 +1,7 @@
-import { useGetLetters, Tag } from "@workspace/api-client-react";
-import { Loader2, PenTool, Mail, Paperclip } from "lucide-react";
+import { useState } from "react";
+import { useGetLetters, useDeleteLetter, getGetLettersQueryKey, Tag } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, PenTool, Mail, Paperclip, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface PostboxViewProps {
@@ -9,13 +11,33 @@ interface PostboxViewProps {
 }
 
 export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxViewProps) {
+  const qc = useQueryClient();
   const { data: letters, isLoading } = useGetLetters(
     { tagId: tag.id },
     { query: { enabled: !!tag.id } }
   );
+  const deleteMutation = useDeleteLetter();
+
+  // Two-step delete: first click sets the id, second click confirms
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  const handleDeleteClick = (e: React.MouseEvent, letterId: number) => {
+    e.stopPropagation();
+    if (confirmDeleteId === letterId) {
+      // Second click — execute delete
+      deleteMutation.mutate({ letterId }, {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getGetLettersQueryKey({ tagId: tag.id }) });
+          setConfirmDeleteId(null);
+        },
+      });
+    } else {
+      setConfirmDeleteId(letterId);
+    }
+  };
 
   return (
-    <div className="h-full flex flex-col w-full max-w-6xl mx-auto">
+    <div className="h-full flex flex-col w-full max-w-6xl mx-auto" onClick={() => setConfirmDeleteId(null)}>
       {/* Header */}
       <div className="shrink-0 px-8 py-10 flex items-end justify-between border-b border-border/30">
         <div className="space-y-2">
@@ -25,7 +47,7 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
           </div>
           <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground">{tag.name}</h2>
         </div>
-        <button 
+        <button
           onClick={onNewLetter}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-medium hover:bg-primary/90 transition-all hover-elevate shadow-md hover:shadow-primary/20"
           data-testid="button-new-letter"
@@ -50,37 +72,60 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {letters.map((letter) => (
-              <button
-                key={letter.id}
-                onClick={() => onReadLetter(letter.id)}
-                className="group relative text-left bg-card border border-card-border rounded-xl p-6 h-56 flex flex-col justify-between transition-all duration-300 hover-elevate hover:border-primary/30 shadow-sm"
-                data-testid={`letter-card-${letter.id}`}
-              >
-                {!letter.isRead && (
-                  <div className="absolute top-4 right-4 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--color-primary),0.8)]" />
-                )}
-                
-                <div className="space-y-4">
-                  <h3 className="font-serif text-xl font-medium text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                    {letter.title}
-                  </h3>
-                  {letter.excerpt && (
-                    <p className="text-muted-foreground text-sm line-clamp-3 font-light leading-relaxed">
-                      {letter.excerpt}
-                    </p>
+            {letters.map((letter) => {
+              const isConfirming = confirmDeleteId === letter.id;
+              return (
+                // div instead of button so we can nest the delete button inside
+                <div
+                  key={letter.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onReadLetter(letter.id)}
+                  onKeyDown={(e) => e.key === "Enter" && onReadLetter(letter.id)}
+                  className="group relative text-left bg-card border border-card-border rounded-xl p-6 h-56 flex flex-col justify-between transition-all duration-300 hover-elevate hover:border-primary/30 shadow-sm cursor-pointer"
+                  data-testid={`letter-card-${letter.id}`}
+                >
+                  {/* Unread dot */}
+                  {!letter.isRead && !isConfirming && (
+                    <div className="absolute top-4 right-4 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--color-primary),0.8)]" />
                   )}
-                </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground/70 font-medium tracking-wide mt-auto pt-4 border-t border-border/50">
-                  <span className="truncate max-w-[120px]">{letter.authorName}</span>
-                  <div className="flex items-center gap-3">
-                    {letter.hasAttachments && <Paperclip size={14} />}
-                    <time dateTime={letter.createdAt}>{format(new Date(letter.createdAt), 'MMM d, yyyy')}</time>
+                  {/* Delete button — revealed on hover */}
+                  <button
+                    onClick={(e) => handleDeleteClick(e, letter.id)}
+                    className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200
+                      ${isConfirming
+                        ? "bg-destructive text-destructive-foreground opacity-100 scale-100"
+                        : "bg-card border border-border text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                      }`}
+                    title={isConfirming ? "Click again to confirm" : "Delete letter"}
+                    aria-label={isConfirming ? "Confirm delete" : "Delete letter"}
+                  >
+                    <Trash2 size={11} strokeWidth={2} />
+                    {isConfirming && <span>Delete?</span>}
+                  </button>
+
+                  <div className="space-y-4">
+                    <h3 className="font-serif text-xl font-medium text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                      {letter.title}
+                    </h3>
+                    {letter.excerpt && (
+                      <p className="text-muted-foreground text-sm line-clamp-3 font-light leading-relaxed">
+                        {letter.excerpt}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground/70 font-medium tracking-wide mt-auto pt-4 border-t border-border/50">
+                    <span className="truncate max-w-[120px]">{letter.authorName}</span>
+                    <div className="flex items-center gap-3">
+                      {letter.hasAttachments && <Paperclip size={14} />}
+                      <time dateTime={letter.createdAt}>{format(new Date(letter.createdAt), 'MMM d, yyyy')}</time>
+                    </div>
                   </div>
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
