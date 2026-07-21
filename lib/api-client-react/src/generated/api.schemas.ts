@@ -50,6 +50,12 @@ export interface SpaceInput {
   sortOrder?: number;
 }
 
+export interface SpaceUpdateInput {
+  /** @minLength 1 */
+  name?: string;
+  sortOrder?: number;
+}
+
 export type TagInputType = typeof TagInputType[keyof typeof TagInputType];
 
 

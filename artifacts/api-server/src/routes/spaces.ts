@@ -92,6 +92,25 @@ router.post("/spaces", requireAuth, async (req, res) => {
   res.status(201).json({ ...created, tags: [] });
 });
 
+router.patch("/spaces/:spaceId", requireAuth, async (req, res) => {
+  const spaceId = parseInt(req.params.spaceId as string);
+  const { name, sortOrder } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (name !== undefined) updates.name = name;
+  if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+  const [updated] = await db
+    .update(spacesTable)
+    .set(updates)
+    .where(eq(spacesTable.id, spaceId))
+    .returning();
+  const tags = await db
+    .select()
+    .from(tagsTable)
+    .where(eq(tagsTable.spaceId, spaceId))
+    .orderBy(tagsTable.sortOrder);
+  res.json({ ...updated, tags });
+});
+
 router.delete("/spaces/:spaceId", requireAuth, async (req, res) => {
   const spaceId = parseInt(req.params.spaceId as string);
   await db.delete(spacesTable).where(eq(spacesTable.id, spaceId));

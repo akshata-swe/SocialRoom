@@ -66,6 +66,38 @@ export const CreateSpaceResponse = zod.object({
 
 
 /**
+ * @summary Rename or reorder a space
+ */
+export const UpdateSpaceParams = zod.object({
+  "spaceId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateSpaceBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdateSpaceResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "sortOrder": zod.number(),
+  "tags": zod.array(zod.object({
+  "id": zod.number(),
+  "spaceId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "type": zod.enum(['postbox', 'chat']),
+  "icon": zod.string().nullish(),
+  "sortOrder": zod.number(),
+  "unreadCount": zod.number()
+}))
+})
+
+
+/**
  * @summary Delete a space
  */
 export const DeleteSpaceParams = zod.object({

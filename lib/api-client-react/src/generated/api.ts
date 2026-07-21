@@ -31,6 +31,7 @@ import type {
   ReactionInput,
   Space,
   SpaceInput,
+  SpaceUpdateInput,
   Tag,
   TagInput,
   UnreadCounts,
@@ -287,6 +288,78 @@ export const useCreateSpace = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateSpaceMutationOptions(options));
+    }
+
+export const getUpdateSpaceUrl = (spaceId: number,) => {
+
+
+
+
+  return `/api/spaces/${spaceId}`
+}
+
+/**
+ * @summary Rename or reorder a space
+ */
+export const updateSpace = async (spaceId: number,
+    spaceUpdateInput: SpaceUpdateInput, options?: RequestInit): Promise<Space> => {
+
+  return customFetch<Space>(getUpdateSpaceUrl(spaceId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(spaceUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSpaceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSpace>>, TError,{spaceId: number;data: BodyType<SpaceUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSpace>>, TError,{spaceId: number;data: BodyType<SpaceUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateSpace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSpace>>, {spaceId: number;data: BodyType<SpaceUpdateInput>}> = (props) => {
+          const {spaceId,data} = props ?? {};
+
+          return  updateSpace(spaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSpaceMutationResult = NonNullable<Awaited<ReturnType<typeof updateSpace>>>
+    export type UpdateSpaceMutationBody = BodyType<SpaceUpdateInput>
+    export type UpdateSpaceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Rename or reorder a space
+ */
+export const useUpdateSpace = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSpace>>, TError,{spaceId: number;data: BodyType<SpaceUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSpace>>,
+        TError,
+        {spaceId: number;data: BodyType<SpaceUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSpaceMutationOptions(options));
     }
 
 export const getDeleteSpaceUrl = (spaceId: number,) => {

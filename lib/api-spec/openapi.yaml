@@ -68,6 +68,29 @@ paths:
                 $ref: "#/components/schemas/Space"
 
   /spaces/{spaceId}:
+    patch:
+      operationId: updateSpace
+      tags: [spaces]
+      summary: Rename or reorder a space
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceUpdateInput"
+      responses:
+        "200":
+          description: Updated space
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Space"
     delete:
       operationId: deleteSpace
       tags: [spaces]
@@ -369,6 +392,15 @@ components:
           type: integer
       required:
         - name
+
+    SpaceUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        sortOrder:
+          type: integer
 
     Tag:
       type: object

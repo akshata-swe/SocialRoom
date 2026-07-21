@@ -22,6 +22,7 @@ export * from './messageInput';
 export * from './reactionInput';
 export * from './space';
 export * from './spaceInput';
+export * from './spaceUpdateInput';
 export * from './tag';
 export * from './tagInput';
 export * from './tagInputType';
