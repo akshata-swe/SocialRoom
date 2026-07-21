@@ -8,7 +8,7 @@ export default function Home() {
   const { isSignedIn } = useUser();
   const [, setLocation] = useLocation();
 
-  const { data: notifications } = useGetNotifications({
+  const { data: notifications, isSuccess: notifLoaded } = useGetNotifications({
     query: { enabled: isSignedIn === true },
   });
 
@@ -18,14 +18,14 @@ export default function Home() {
     ? (notifications?.newMessageReactions ?? 0) + (notifications?.newLetterComments ?? 0)
     : 0;
 
-  // If already signed in with no new notifications, redirect to main app
+  // Only auto-redirect once notification data has actually loaded and shows nothing new
   useEffect(() => {
-    if (!isSignedIn) return;
-    const t = setTimeout(() => {
-      if (totalNew === 0) setLocation("/spaces");
-    }, 100);
-    return () => clearTimeout(t);
-  }, [isSignedIn, totalNew, setLocation]);
+    if (!isSignedIn || !notifLoaded) return;
+    if (totalNew === 0) {
+      const t = setTimeout(() => setLocation("/spaces"), 400);
+      return () => clearTimeout(t);
+    }
+  }, [isSignedIn, notifLoaded, totalNew, setLocation]);
 
   const handleEnter = () => {
     if (isSignedIn) {

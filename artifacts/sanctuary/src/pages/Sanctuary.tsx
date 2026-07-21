@@ -90,9 +90,6 @@ export default function Sanctuary() {
         <div className="flex-1 relative z-10 w-full h-full">
           {view === "empty" && (
             <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground space-y-4 px-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-sidebar/50 flex items-center justify-center border border-border/50">
-                <span className="font-serif text-2xl italic opacity-50">S</span>
-              </div>
               <p className="font-serif text-xl font-medium tracking-wide">The room is quiet.</p>
               <p className="text-sm font-light max-w-sm">Select a drawer or channel from the sidebar to begin.</p>
             </div>
