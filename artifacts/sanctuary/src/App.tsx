@@ -82,7 +82,12 @@ const clerkAppearance = {
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        afterSignInUrl={`${basePath}/sanctuary`}
+      />
     </div>
   );
 }
@@ -90,7 +95,12 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        afterSignUpUrl={`${basePath}/sanctuary`}
+      />
     </div>
   );
 }
@@ -195,6 +205,8 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
+      afterSignInUrl={`${basePath}/sanctuary`}
+      afterSignUpUrl={`${basePath}/sanctuary`}
       localization={{
         signIn: {
           start: {
