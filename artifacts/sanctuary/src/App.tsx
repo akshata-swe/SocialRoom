@@ -132,8 +132,13 @@ function HomeRedirect() {
  *  4. isProfileComplete=true  → Sanctuary (main workspace)
  */
 function OnboardingGate() {
-  const { data: me, isLoading } = useGetMe();
+  const { data: me, isLoading, isError } = useGetMe();
   const qc = useQueryClient();
+
+  // If the API errors (expired token, network, etc.) redirect home rather than spinning forever
+  if (isError) {
+    return <Redirect to="/" />;
+  }
 
   // While /me is resolving, hold a neutral loading screen
   if (isLoading || !me) {
