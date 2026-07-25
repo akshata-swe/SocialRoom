@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -81,31 +81,6 @@ const clerkAppearance = {
   },
 };
 
-function SignInPage() {
-  return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        afterSignInUrl={`${basePath}/sanctuary`}
-      />
-    </div>
-  );
-}
-
-function SignUpPage() {
-  return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        afterSignUpUrl={`${basePath}/sanctuary`}
-      />
-    </div>
-  );
-}
 
 function HomeRedirect() {
   return (
@@ -245,10 +220,8 @@ function ClerkProviderWithRoutes() {
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
           <Switch>
-            <Route path="/" component={HomeRedirect} />
             <Route path="/sanctuary" component={SanctuaryPortal} />
-            <Route path="/sign-in/*?" component={SignInPage} />
-            <Route path="/sign-up/*?" component={SignUpPage} />
+            <Route path="/" component={HomeRedirect} />
             <Route path="*">
               <Redirect to="/" />
             </Route>
