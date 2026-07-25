@@ -11,10 +11,9 @@ import {
 } from "@workspace/api-client-react";
 import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser } from "lucide-react";
-
-const CHAT_EMOJIS = ["❤️", "✨", "🕯️", "☕", "🍂"];
+import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
+import EmojiPickerPopup from "./EmojiPickerPopup";
 
 interface ChatViewProps {
   tag: Tag;
@@ -123,6 +122,17 @@ export default function ChatView({ tag }: ChatViewProps) {
 
   // Clear history confirm state (two-step)
   const [confirmClear, setConfirmClear] = useState(false);
+
+  // Emoji picker state — tracks which message's picker is open + its anchor rect
+  const [pickerAnchor, setPickerAnchor] = useState<{ msgId: number; rect: DOMRect } | null>(null);
+
+  const togglePicker = (msgId: number, e: React.MouseEvent) => {
+    if (pickerAnchor?.msgId === msgId) {
+      setPickerAnchor(null);
+    } else {
+      setPickerAnchor({ msgId, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
+    }
+  };
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -485,26 +495,20 @@ export default function ChatView({ tag }: ChatViewProps) {
                           </div>
                         )}
 
-                        {/* Emoji picker — only for partner's messages */}
+                        {/* Emoji picker trigger — only for partner's messages */}
                         {!isMe && !isEditing && (
-                          <div className="flex items-center gap-0.5 mt-0.5">
-                            {CHAT_EMOJIS.map((emoji) => {
-                              const alreadyReacted = ((reactions[emoji] ?? []) as string[]).includes(myUserId);
-                              return (
-                                <button
-                                  key={emoji}
-                                  onClick={() => handleReact(msg.id, emoji)}
-                                  className={`text-base rounded-full w-7 h-7 flex items-center justify-center transition-all ${
-                                    alreadyReacted
-                                      ? "bg-primary/20 scale-110"
-                                      : "opacity-30 hover:opacity-100 hover:bg-muted"
-                                  }`}
-                                  title={`React with ${emoji}`}
-                                >
-                                  {emoji}
-                                </button>
-                              );
-                            })}
+                          <div className="flex items-center mt-0.5">
+                            <button
+                              onClick={(e) => togglePicker(msg.id, e)}
+                              className={`rounded-full w-7 h-7 flex items-center justify-center transition-all ${
+                                pickerAnchor?.msgId === msg.id
+                                  ? "bg-primary/20 text-primary opacity-100"
+                                  : "opacity-30 hover:opacity-100 hover:bg-muted text-muted-foreground"
+                              }`}
+                              title="Add reaction"
+                            >
+                              <Smile size={14} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -517,6 +521,15 @@ export default function ChatView({ tag }: ChatViewProps) {
           </div>
         )}
       </div>
+
+      {/* Emoji picker portal */}
+      {pickerAnchor && (
+        <EmojiPickerPopup
+          anchor={pickerAnchor.rect}
+          onSelect={(emoji) => handleReact(pickerAnchor.msgId, emoji)}
+          onClose={() => setPickerAnchor(null)}
+        />
+      )}
 
       {/* Input area */}
       <div className="shrink-0 p-4 md:p-6 bg-background/80 backdrop-blur-md border-t border-border/30">

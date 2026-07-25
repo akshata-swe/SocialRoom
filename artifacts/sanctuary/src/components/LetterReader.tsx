@@ -9,7 +9,8 @@ import {
   getGetLetterQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Paperclip, Trash2, Send } from "lucide-react";
+import { X, Loader2, Paperclip, Trash2, Send, Smile } from "lucide-react";
+import EmojiPickerPopup from "./EmojiPickerPopup";
 import { format } from "date-fns";
 
 interface LetterReaderProps {
@@ -17,7 +18,6 @@ interface LetterReaderProps {
   onClose: () => void;
 }
 
-const EMOJI_OPTIONS = ["❤️", "✨", "🕯️", "☕", "🍂"];
 
 export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
   const { data: letter, isLoading } = useGetLetter(letterId);
@@ -29,6 +29,7 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
   const qc = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -174,30 +175,53 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
             <div className="h-px w-24 bg-border" />
 
             {/* Emoji reactions */}
-            <div className="flex items-center gap-1.5 md:gap-3 bg-muted/30 p-1.5 md:p-2 rounded-full border border-border/50">
-              {EMOJI_OPTIONS.map(emoji => {
-                const users = letter.reactions?.[emoji] ?? [];
-                const count = users.length;
-                const iMine = users.includes(myUserId);
-                return (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReaction(emoji)}
-                    className={`group relative flex items-center justify-center w-9 h-9 md:w-12 md:h-12 rounded-full border transition-all ${
-                      iMine
-                        ? "bg-primary/20 border-primary/40 scale-110"
-                        : "border-transparent hover:bg-card hover:border-border"
-                    }`}
-                  >
-                    <span className="text-lg md:text-2xl group-hover:scale-110 transition-transform">{emoji}</span>
-                    {count > 0 && (
-                      <span className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {/* Active reaction pills */}
+              {Object.entries((letter.reactions ?? {}) as Record<string, string[]>)
+                .filter(([, users]) => users.length > 0)
+                .map(([emoji, users]) => {
+                  const iMine = users.includes(myUserId);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReaction(emoji)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all ${
+                        iMine
+                          ? "bg-primary/20 border-primary/40 text-foreground scale-105"
+                          : "bg-muted/40 border-border/40 text-foreground/70 hover:bg-primary/10 hover:border-primary/30"
+                      }`}
+                    >
+                      <span className="text-lg leading-none">{emoji}</span>
+                      <span className="text-xs font-medium">{users.length}</span>
+                    </button>
+                  );
+                })}
+
+              {/* Add reaction button */}
+              <button
+                onClick={(e) =>
+                  setPickerAnchor(
+                    pickerAnchor ? null : (e.currentTarget as HTMLElement).getBoundingClientRect(),
+                  )
+                }
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all ${
+                  pickerAnchor
+                    ? "bg-primary/20 border-primary/40 text-primary"
+                    : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                }`}
+                title="Add reaction"
+              >
+                <Smile size={15} />
+                <span className="text-xs">React</span>
+              </button>
+
+              {pickerAnchor && (
+                <EmojiPickerPopup
+                  anchor={pickerAnchor}
+                  onSelect={handleReaction}
+                  onClose={() => setPickerAnchor(null)}
+                />
+              )}
             </div>
 
             {/* Comments section */}
