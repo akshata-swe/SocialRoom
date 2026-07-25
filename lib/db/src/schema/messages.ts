@@ -20,6 +20,14 @@ export const messagesTable = pgTable("messages", {
   senderLoginName: text("sender_login_name"),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** View-once photo: URL stored until viewed/expired, then cleared. */
+  viewOnceUrl: text("view_once_url"),
+  /** When the view-once photo expires (24 h after send). */
+  viewOnceExpiresAt: timestamp("view_once_expires_at"),
+  /** Timestamp when the partner first opened the view-once photo. */
+  viewOnceViewedAt: timestamp("view_once_viewed_at"),
+  /** UserId of the person who viewed the photo. */
+  viewOnceViewedBy: text("view_once_viewed_by"),
 });
 
 // Track the last message each user has read in a chat channel

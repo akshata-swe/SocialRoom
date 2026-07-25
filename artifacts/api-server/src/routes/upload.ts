@@ -25,8 +25,9 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
-router.use("/uploads", (req, res, next) => {
-  const filePath = path.join(uploadDir, path.basename(req.path));
+// Auth-protected static file serving — image tags send cookies on same-origin requests
+router.get("/uploads/:filename", requireAuth, (req, res, next) => {
+  const filePath = path.join(uploadDir, path.basename(req.params.filename));
   if (fs.existsSync(filePath)) {
     res.sendFile(filePath);
   } else {

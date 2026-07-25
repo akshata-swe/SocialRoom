@@ -59,7 +59,28 @@ function serializeMessage(
   m: typeof messagesTable.$inferSelect,
   partnerLastReadId: number,
   reactions: Record<string, string[]> = {},
+  requesterId?: string,
 ) {
+  const now = new Date();
+  let viewOnce: {
+    status: "unseen" | "opened" | "expired";
+    expiresAt: string | null;
+    viewedAt: string | null;
+    isSender: boolean;
+  } | null = null;
+
+  if (m.viewOnceUrl !== null && m.viewOnceUrl !== undefined) {
+    const expired = m.viewOnceExpiresAt ? m.viewOnceExpiresAt < now : false;
+    const viewed = !!m.viewOnceViewedAt;
+    const isSender = requesterId === m.authorId;
+    viewOnce = {
+      status: viewed ? "opened" : expired ? "expired" : "unseen",
+      expiresAt: m.viewOnceExpiresAt?.toISOString() ?? null,
+      viewedAt: m.viewOnceViewedAt?.toISOString() ?? null,
+      isSender,
+    };
+  }
+
   return {
     id: m.id,
     tagId: m.tagId,
@@ -70,6 +91,7 @@ function serializeMessage(
     createdAt: m.createdAt.toISOString(),
     seenByPartner: partnerLastReadId >= m.id,
     reactions,
+    viewOnce,
   };
 }
 
@@ -147,7 +169,7 @@ router.get("/messages", requireAuth, async (req, res) => {
   res.json(
     messages
       .reverse()
-      .map((m) => serializeMessage(m, partnerLastReadId, reactionsMap.get(m.id) ?? {})),
+      .map((m) => serializeMessage(m, partnerLastReadId, reactionsMap.get(m.id) ?? {}, userId)),
   );
 });
 
@@ -192,10 +214,11 @@ router.get("/messages/stream", requireAuth, (req, res) => {
 
 router.post("/messages", requireAuth, async (req, res) => {
   const { userId } = req as AuthedRequest;
-  const { tagId, content } = req.body;
+  const { tagId, content, viewOnceUrl } = req.body;
 
-  if (!tagId || !content?.trim()) {
-    res.status(400).json({ error: "tagId and content are required" });
+  // Require either text content or a view-once photo URL
+  if (!tagId || (!content?.trim() && !viewOnceUrl)) {
+    res.status(400).json({ error: "tagId and content (or a view-once photo) are required" });
     return;
   }
 
@@ -208,12 +231,23 @@ router.post("/messages", requireAuth, async (req, res) => {
 
   const authorName = await resolveDisplayName(userId);
 
+  const viewOnceExpiresAt = viewOnceUrl
+    ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+    : null;
+
   const [message] = await db
     .insert(messagesTable)
-    .values({ tagId, authorId: userId, authorName, content: content.trim() })
+    .values({
+      tagId,
+      authorId: userId,
+      authorName,
+      content: content?.trim() || "",
+      viewOnceUrl: viewOnceUrl ?? null,
+      viewOnceExpiresAt,
+    })
     .returning();
 
-  const serialized = serializeMessage(message, 0, {});
+  const serialized = serializeMessage(message, 0, {}, userId);
 
   await db
     .insert(messageReadsTable)
@@ -227,6 +261,52 @@ router.post("/messages", requireAuth, async (req, res) => {
 
   broadcast(tagId, { type: "new", payload: serialized });
   res.status(201).json(serialized);
+});
+
+// ---------------------------------------------------------------------------
+// POST /messages/:messageId/view  — partner opens a view-once photo
+// ---------------------------------------------------------------------------
+
+router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
+  const { userId } = req as AuthedRequest;
+  const messageId = parseInt(req.params.messageId as string);
+
+  const [message] = await db
+    .select()
+    .from(messagesTable)
+    .where(eq(messagesTable.id, messageId))
+    .limit(1);
+
+  if (!message) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+  if (!message.viewOnceUrl) {
+    res.status(400).json({ error: "This message has no view-once photo" });
+    return;
+  }
+  if (message.authorId === userId) {
+    res.status(403).json({ error: "Sender cannot view their own view-once photo" });
+    return;
+  }
+  if (message.viewOnceViewedAt) {
+    res.status(410).json({ error: "This photo has already been viewed" });
+    return;
+  }
+  const now = new Date();
+  if (message.viewOnceExpiresAt && message.viewOnceExpiresAt < now) {
+    res.status(410).json({ error: "This photo has expired" });
+    return;
+  }
+
+  await db
+    .update(messagesTable)
+    .set({ viewOnceViewedAt: now, viewOnceViewedBy: userId })
+    .where(eq(messagesTable.id, messageId));
+
+  broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
+
+  res.json({ url: message.viewOnceUrl });
 });
 
 // ---------------------------------------------------------------------------

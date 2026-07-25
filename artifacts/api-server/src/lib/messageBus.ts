@@ -16,7 +16,8 @@ export type BusEvent =
   | { type: "delete"; payload: { id: number } }
   | { type: "clear"; payload: Record<string, never> }
   | { type: "read"; payload: { upToId: number } }
-  | { type: "reaction"; payload: { messageId: number; reactions: Record<string, string[]> } };
+  | { type: "reaction"; payload: { messageId: number; reactions: Record<string, string[]> } }
+  | { type: "view-once-viewed"; payload: { messageId: number } };
 
 type Listener = (event: BusEvent) => void;
 

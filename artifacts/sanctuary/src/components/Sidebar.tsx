@@ -460,7 +460,10 @@ function AddTagRow({
         {(["postbox", "chat"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setType(t)}
+            onMouseDown={(e) => {
+              e.preventDefault(); // prevent input blur → form-close race
+              setType(t);
+            }}
             className={`flex-1 text-[11px] py-1 rounded transition-colors ${type === t ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground/50 border border-sidebar-border/50 hover:text-muted-foreground"}`}
           >
             {t === "postbox" ? "📬 Postbox" : "💬 Chat"}
