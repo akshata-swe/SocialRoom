@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "j1kJouMNY_Q88oWXUAV-k"
+uri = "file://Kothadi_PRD.md"
+type = "text"
+title = "Kothadi — Product Requirements Document"
