@@ -5,12 +5,13 @@ import {
   useUpdateMessage,
   useDeleteMessage,
   useReactToMessage,
+  useClearChatHistory,
   useGetMe,
   getGetMessagesQueryKey,
 } from "@workspace/api-client-react";
 import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser } from "lucide-react";
 
 const CHAT_EMOJIS = ["❤️", "✨", "🕯️", "☕", "🍂"];
 import { isToday, isYesterday, format } from "date-fns";
@@ -43,6 +44,7 @@ interface ChatStreamHandlers {
   onDelete: (payload: { id: number }) => void;
   onRead: (payload: { upToId: number }) => void;
   onReaction: (payload: { messageId: number; reactions: Record<string, string[]> }) => void;
+  onClear: () => void;
 }
 
 function useChatStream(
@@ -73,6 +75,9 @@ function useChatStream(
     es.addEventListener("reaction", (e: MessageEvent) => {
       try { handlersRef.current.onReaction(JSON.parse(e.data)); } catch { /* ignore */ }
     });
+    es.addEventListener("clear", () => {
+      try { handlersRef.current.onClear(); } catch { /* ignore */ }
+    });
     es.onerror = () => setStatus("error");
     return () => es.close();
   }, [tagId]);
@@ -97,7 +102,11 @@ export default function ChatView({ tag }: ChatViewProps) {
   const updateMutation  = useUpdateMessage();
   const deleteMutation  = useDeleteMessage();
   const reactMutation   = useReactToMessage();
+  const clearMutation   = useClearChatHistory();
   const { data: me }    = useGetMe();
+
+  const isAdminUser = me?.isAdmin ?? false;
+  const isReadOnly  = (tag.isAdminOnly ?? false) && !isAdminUser;
 
   // Compose input
   const [input, setInput]         = useState("");
@@ -111,6 +120,9 @@ export default function ChatView({ tag }: ChatViewProps) {
 
   // Delete confirm state (two-step)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Clear history confirm state (two-step)
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -172,6 +184,15 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
+  // Admin cleared the chat — wipe all messages from the local cache
+  const handleClearSSE = useCallback(
+    () => {
+      qc.setQueryData<Message[]>(messagesQueryKey, () => []);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tag.id],
+  );
+
   // Someone reacted — update reactions on that message in the cache
   const handleReactionSSE = useCallback(
     ({ messageId, reactions }: { messageId: number; reactions: Record<string, string[]> }) => {
@@ -189,6 +210,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     onDelete: handleDeleteSSE,
     onRead: handleReadSSE,
     onReaction: handleReactionSSE,
+    onClear: handleClearSSE,
   });
 
   // ── React ─────────────────────────────────────────────────────────────────
@@ -498,36 +520,80 @@ export default function ChatView({ tag }: ChatViewProps) {
 
       {/* Input area */}
       <div className="shrink-0 p-4 md:p-6 bg-background/80 backdrop-blur-md border-t border-border/30">
-        <form
-          onSubmit={handleSend}
-          className="relative max-w-3xl mx-auto flex items-end gap-3 bg-card border border-border rounded-3xl p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
-        >
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Whisper something…"
-            className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:outline-none focus:ring-0 px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 font-light custom-scrollbar"
-            rows={1}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || sendMutation.isPending}
-            className="shrink-0 p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary transition-all flex items-center justify-center mb-0.5 mr-0.5"
-            data-testid="button-send-message"
-          >
-            {sendMutation.isPending
-              ? <Loader2 size={18} className="animate-spin" />
-              : <Send size={18} className="-ml-0.5" />
-            }
-          </button>
-        </form>
-        <p className="text-center text-[10px] text-muted-foreground/30 mt-2 font-light">
-          Enter to send · Shift+Enter for new line
-        </p>
+        {isReadOnly ? (
+          <div className="max-w-3xl mx-auto flex items-center justify-center gap-2 py-3 text-muted-foreground/40 text-sm font-light">
+            <Lock size={13} className="shrink-0" />
+            <span>This channel is read-only</span>
+          </div>
+        ) : (
+          <>
+            <form
+              onSubmit={handleSend}
+              className="relative max-w-3xl mx-auto flex items-end gap-3 bg-card border border-border rounded-3xl p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+            >
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Whisper something…"
+                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:outline-none focus:ring-0 px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 font-light custom-scrollbar"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || sendMutation.isPending}
+                className="shrink-0 p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary transition-all flex items-center justify-center mb-0.5 mr-0.5"
+                data-testid="button-send-message"
+              >
+                {sendMutation.isPending
+                  ? <Loader2 size={18} className="animate-spin" />
+                  : <Send size={18} className="-ml-0.5" />
+                }
+              </button>
+            </form>
+            <div className="max-w-3xl mx-auto flex items-center justify-between mt-2">
+              <p className="text-[10px] text-muted-foreground/30 font-light">
+                Enter to send · Shift+Enter for new line
+              </p>
+              {isAdminUser && (
+                confirmClear ? (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground/50">Clear all history?</span>
+                    <button
+                      onClick={() => {
+                        clearMutation.mutate(
+                          { params: { tagId: tag.id } },
+                          { onSuccess: () => { qc.setQueryData<Message[]>(messagesQueryKey, () => []); setConfirmClear(false); } },
+                        );
+                      }}
+                      className="text-destructive hover:text-destructive/80 font-medium transition-colors"
+                    >
+                      Yes, clear
+                    </button>
+                    <button
+                      onClick={() => setConfirmClear(false)}
+                      className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmClear(true)}
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground/30 hover:text-destructive/60 transition-colors font-light"
+                    title="Clear entire chat history (admin)"
+                  >
+                    <Eraser size={11} />
+                    <span>Clear history</span>
+                  </button>
+                )
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

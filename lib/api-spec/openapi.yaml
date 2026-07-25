@@ -332,6 +332,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Message"
 
+  /messages/clear:
+    delete:
+      operationId: clearChatHistory
+      tags: [messages]
+      summary: Delete all messages in a channel (admin only)
+      parameters:
+        - name: tagId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cleared
+
   /messages/{messageId}:
     patch:
       operationId: updateMessage
@@ -630,6 +645,8 @@ components:
           type: integer
         unreadCount:
           type: integer
+        isAdminOnly:
+          type: boolean
       required:
         - id
         - spaceId
@@ -638,6 +655,7 @@ components:
         - type
         - sortOrder
         - unreadCount
+        - isAdminOnly
 
     TagInput:
       type: object
@@ -671,6 +689,8 @@ components:
           type: integer
         spaceId:
           type: integer
+        isAdminOnly:
+          type: boolean
 
     UnreadCounts:
       type: object

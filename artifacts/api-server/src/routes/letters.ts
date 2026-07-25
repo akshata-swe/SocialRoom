@@ -7,9 +7,11 @@ import {
   letterAttachmentsTable,
   letterCommentsTable,
   userProfilesTable,
+  tagsTable,
 } from "@workspace/db";
 import { eq, sql, inArray, and, desc } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
+import { isAdmin } from "../middlewares/requireAdmin";
 import { getOrCreateProfile } from "./profile";
 
 const router = Router();
@@ -99,6 +101,16 @@ router.post("/letters", requireAuth, async (req, res) => {
   if (!title || !content || !tagIds?.length) {
     res.status(400).json({ error: "title, content, tagIds are required" });
     return;
+  }
+
+  // Block non-admins from posting in admin-only channels
+  if (tagIds?.length) {
+    const tags = await db.select().from(tagsTable).where(inArray(tagsTable.id, tagIds));
+    const adminOnlyTag = tags.find((t) => t.isAdminOnly);
+    if (adminOnlyTag && !isAdmin(userId)) {
+      res.status(403).json({ error: "This channel is read-only for non-admins" });
+      return;
+    }
   }
 
   // Resolve display name server-side from user_profiles — never trust the client body

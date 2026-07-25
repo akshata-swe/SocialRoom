@@ -24,17 +24,19 @@ import {
   Check,
   X,
   GripVertical,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 // ─── Drag / drop types ────────────────────────────────────────────────────────
 
 type DragItem =
   | { kind: "space"; id: number }
-  | { kind: "tag";   id: number; spaceId: number };
+  | { kind: "tag"; id: number; spaceId: number };
 
 type DropTarget =
   | { kind: "space"; id: number; position: "above" | "below" }
-  | { kind: "tag";   id: number; spaceId: number; position: "above" | "below" }
+  | { kind: "tag"; id: number; spaceId: number; position: "above" | "below" }
   | { kind: "space-body"; spaceId: number }; // drag tag onto space header → end of that space
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,49 +48,107 @@ function reorder<T>(list: T[], from: number, to: number): T[] {
   return r;
 }
 
-function cursorPosition(e: React.DragEvent, el: HTMLElement): "above" | "below" {
-  const mid = el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
+function cursorPosition(
+  e: React.DragEvent,
+  el: HTMLElement,
+): "above" | "below" {
+  const mid =
+    el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
   return e.clientY < mid ? "above" : "below";
 }
 
 // ─── Inline edit ──────────────────────────────────────────────────────────────
 
 function InlineEdit({
-  value, onCommit, onCancel, className = "",
+  value,
+  onCommit,
+  onCancel,
+  className = "",
 }: {
-  value: string; onCommit: (v: string) => void; onCancel: () => void; className?: string;
+  value: string;
+  onCommit: (v: string) => void;
+  onCancel: () => void;
+  className?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { setDraft(value); setTimeout(() => ref.current?.select(), 0); }, [value]);
-  const commit = () => { const t = draft.trim(); if (t && t !== value) onCommit(t); else onCancel(); };
+  useEffect(() => {
+    setDraft(value);
+    setTimeout(() => ref.current?.select(), 0);
+  }, [value]);
+  const commit = () => {
+    const t = draft.trim();
+    if (t && t !== value) onCommit(t);
+    else onCancel();
+  };
   return (
     <div className="flex items-center gap-1 flex-1 min-w-0">
       <input
-        ref={ref} value={draft}
+        ref={ref}
+        value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") onCancel(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") onCancel();
+        }}
+        t
         onBlur={commit}
         className={`flex-1 min-w-0 bg-sidebar-accent/60 border border-primary/40 rounded px-2 py-0.5 outline-none focus:border-primary/80 ${className}`}
       />
-      <button onMouseDown={(e) => { e.preventDefault(); commit(); }} className="text-primary hover:text-primary/80 shrink-0"><Check size={12} /></button>
-      <button onMouseDown={(e) => { e.preventDefault(); onCancel(); }} className="text-muted-foreground/50 hover:text-foreground shrink-0"><X size={12} /></button>
+      <button
+        onMouseDown={(e) => {
+          e.preventDefault();
+          commit();
+        }}
+        className="text-primary hover:text-primary/80 shrink-0"
+      >
+        <Check size={12} />
+      </button>
+      <button
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onCancel();
+        }}
+        className="text-muted-foreground/50 hover:text-foreground shrink-0"
+      >
+        <X size={12} />
+      </button>
     </div>
   );
 }
 
 // ─── Two-step delete ──────────────────────────────────────────────────────────
 
-function DeleteButton({ onDelete, size = 11 }: { onDelete: () => void; size?: number }) {
+function DeleteButton({
+  onDelete,
+  size = 11,
+}: {
+  onDelete: () => void;
+  size?: number;
+}) {
   const [armed, setArmed] = useState(false);
-  if (armed) return (
-    <>
-      <button onClick={onDelete} className="p-0.5 rounded text-destructive hover:bg-destructive/15 transition-colors"><Check size={size} /></button>
-      <button onClick={() => setArmed(false)} className="p-0.5 rounded text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/60 transition-colors"><X size={size} /></button>
-    </>
-  );
+  if (armed)
+    return (
+      <>
+        <button
+          onClick={onDelete}
+          className="p-0.5 rounded text-destructive hover:bg-destructive/15 transition-colors"
+        >
+          <Check size={size} />
+        </button>
+        <button
+          onClick={() => setArmed(false)}
+          className="p-0.5 rounded text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/60 transition-colors"
+        >
+          <X size={size} />
+        </button>
+      </>
+    );
   return (
-    <button onClick={() => setArmed(true)} className="p-0.5 rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors">
+    <button
+      onClick={() => setArmed(true)}
+      className="p-0.5 rounded text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+    >
       <Trash2 size={size} />
     </button>
   );
@@ -97,8 +157,16 @@ function DeleteButton({ onDelete, size = 11 }: { onDelete: () => void; size?: nu
 // ─── Space header ─────────────────────────────────────────────────────────────
 
 function SpaceHeader({
-  space, isAdmin, dragging, dropTarget,
-  onRename, onDelete, onDragStart, onDragOver, onDragLeave, onDrop,
+  space,
+  isAdmin,
+  dragging,
+  dropTarget,
+  onRename,
+  onDelete,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   space: { id: number; name: string };
   isAdmin: boolean;
@@ -115,23 +183,41 @@ function SpaceHeader({
   const ref = useRef<HTMLDivElement>(null);
 
   const spaceDropPos =
-    dropTarget?.kind === "space" && dropTarget.id === space.id ? dropTarget.position : null;
-  const isBodyTarget = dropTarget?.kind === "space-body" && dropTarget.spaceId === space.id;
+    dropTarget?.kind === "space" && dropTarget.id === space.id
+      ? dropTarget.position
+      : null;
+  const isBodyTarget =
+    dropTarget?.kind === "space-body" && dropTarget.spaceId === space.id;
 
   return (
     <div
       ref={ref}
       draggable={!editing}
-      onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
-      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); onDragOver(e); }}
+      onDragStart={(e) => {
+        e.stopPropagation();
+        onDragStart();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDragOver(e);
+      }}
       onDragLeave={onDragLeave}
-      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(e); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDrop(e);
+      }}
       className={[
         "group/space flex items-center gap-1 px-1 mb-2 rounded-md transition-all",
         dragging ? "opacity-40" : "",
         isBodyTarget ? "bg-primary/10 ring-1 ring-primary/30" : "",
-        spaceDropPos === "above" ? "border-t-2 border-primary/70 pt-0" : "border-t-2 border-transparent",
-        spaceDropPos === "below" ? "border-b-2 border-primary/70" : "border-b-2 border-transparent",
+        spaceDropPos === "above"
+          ? "border-t-2 border-primary/70 pt-0"
+          : "border-t-2 border-transparent",
+        spaceDropPos === "below"
+          ? "border-b-2 border-primary/70"
+          : "border-b-2 border-transparent",
       ].join(" ")}
     >
       <span className="cursor-grab text-muted-foreground/20 hover:text-muted-foreground/50 shrink-0 transition-colors touch-none">
@@ -141,7 +227,10 @@ function SpaceHeader({
       {editing ? (
         <InlineEdit
           value={space.name}
-          onCommit={(v) => { onRename(v); setEditing(false); }}
+          onCommit={(v) => {
+            onRename(v);
+            setEditing(false);
+          }}
           onCancel={() => setEditing(false)}
           className="text-xs font-medium uppercase tracking-wider"
         />
@@ -151,7 +240,12 @@ function SpaceHeader({
             {space.name}
           </span>
           <div className="flex items-center gap-0.5 opacity-0 group-hover/space:opacity-100 transition-opacity duration-150 shrink-0">
-            <button onClick={() => setEditing(true)} className="p-0.5 rounded text-muted-foreground/50 hover:text-primary hover:bg-sidebar-accent/60 transition-colors"><Pencil size={11} /></button>
+            <button
+              onClick={() => setEditing(true)}
+              className="p-0.5 rounded text-muted-foreground/50 hover:text-primary hover:bg-sidebar-accent/60 transition-colors"
+            >
+              <Pencil size={11} />
+            </button>
             {isAdmin && <DeleteButton onDelete={onDelete} size={11} />}
           </div>
         </>
@@ -163,8 +257,20 @@ function SpaceHeader({
 // ─── Tag row ──────────────────────────────────────────────────────────────────
 
 function TagRow({
-  tag, isActive, unread, isAdmin, dragging, dropTarget,
-  onSelect, onRename, onDelete, onDragStart, onDragOver, onDragLeave, onDrop,
+  tag,
+  isActive,
+  unread,
+  isAdmin,
+  dragging,
+  dropTarget,
+  onSelect,
+  onRename,
+  onDelete,
+  onToggleAdminOnly,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   tag: Tag;
   isActive: boolean;
@@ -175,6 +281,7 @@ function TagRow({
   onSelect: () => void;
   onRename: (v: string) => void;
   onDelete: () => void;
+  onToggleAdminOnly: () => void;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
@@ -183,31 +290,52 @@ function TagRow({
   const [editing, setEditing] = useState(false);
 
   const tagDropPos =
-    dropTarget?.kind === "tag" && dropTarget.id === tag.id ? dropTarget.position : null;
+    dropTarget?.kind === "tag" && dropTarget.id === tag.id
+      ? dropTarget.position
+      : null;
 
-  if (editing) return (
-    <div className="px-2 py-1.5">
-      <InlineEdit
-        value={tag.name}
-        onCommit={(v) => { onRename(v); setEditing(false); }}
-        onCancel={() => setEditing(false)}
-        className="text-sm text-foreground"
-      />
-    </div>
-  );
+  if (editing)
+    return (
+      <div className="px-2 py-1.5">
+        <InlineEdit
+          value={tag.name}
+          onCommit={(v) => {
+            onRename(v);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+          className="text-sm text-foreground"
+        />
+      </div>
+    );
 
   return (
     <div
       draggable
-      onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
-      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); onDragOver(e); }}
+      onDragStart={(e) => {
+        e.stopPropagation();
+        onDragStart();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDragOver(e);
+      }}
       onDragLeave={onDragLeave}
-      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(e); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDrop(e);
+      }}
       className={[
         "group/tag relative flex items-center gap-1 transition-all",
         dragging ? "opacity-40" : "",
-        tagDropPos === "above" ? "border-t-2 border-primary/70" : "border-t-2 border-transparent",
-        tagDropPos === "below" ? "border-b-2 border-primary/70" : "border-b-2 border-transparent",
+        tagDropPos === "above"
+          ? "border-t-2 border-primary/70"
+          : "border-t-2 border-transparent",
+        tagDropPos === "below"
+          ? "border-b-2 border-primary/70"
+          : "border-b-2 border-transparent",
       ].join(" ")}
     >
       <span className="cursor-grab text-muted-foreground/20 hover:text-muted-foreground/50 shrink-0 pl-1 transition-colors touch-none">
@@ -225,21 +353,48 @@ function TagRow({
       >
         <div className="flex items-center gap-2.5 truncate">
           {tag.icon ? (
-            <span className={`text-base leading-none shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover/tag:scale-110"}`}>{tag.icon}</span>
+            <span
+              className={`text-base leading-none shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover/tag:scale-110"}`}
+            >
+              {tag.icon}
+            </span>
           ) : (
-            <span className="w-4 h-4 rounded-full border border-sidebar-border flex items-center justify-center text-[10px] shrink-0">#</span>
+            <span className="w-4 h-4 rounded-full border border-sidebar-border flex items-center justify-center text-[10px] shrink-0">
+              #
+            </span>
           )}
           <span className="truncate">{tag.name}</span>
         </div>
         {unread > 0 && (
-          <div className={`min-w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 shrink-0 ${isActive ? "bg-primary text-primary-foreground" : "bg-sidebar-primary/20 text-sidebar-primary"}`}>
+          <div
+            className={`min-w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 shrink-0 ${isActive ? "bg-primary text-primary-foreground" : "bg-sidebar-primary/20 text-sidebar-primary"}`}
+          >
             {unread}
           </div>
         )}
       </button>
 
+      {/* Always-visible lock indicator for admin-only tags */}
+      {tag.isAdminOnly && !isAdmin && (
+        <Lock size={10} className="shrink-0 text-muted-foreground/30 mr-1" />
+      )}
+
       <div className="absolute right-1 flex items-center gap-0.5 opacity-0 group-hover/tag:opacity-100 transition-opacity duration-150 bg-sidebar/80 backdrop-blur-sm rounded px-0.5">
-        <button onClick={() => setEditing(true)} className="p-0.5 rounded text-muted-foreground/50 hover:text-primary hover:bg-sidebar-accent/60 transition-colors"><Pencil size={11} /></button>
+        <button
+          onClick={() => setEditing(true)}
+          className="p-0.5 rounded text-muted-foreground/50 hover:text-primary hover:bg-sidebar-accent/60 transition-colors"
+        >
+          <Pencil size={11} />
+        </button>
+        {isAdmin && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleAdminOnly(); }}
+            className={`p-0.5 rounded transition-colors ${tag.isAdminOnly ? "text-primary/60 hover:text-primary" : "text-muted-foreground/50 hover:text-primary/70"} hover:bg-sidebar-accent/60`}
+            title={tag.isAdminOnly ? "Remove read-only lock" : "Make read-only (admin-only)"}
+          >
+            {tag.isAdminOnly ? <Lock size={11} /> : <Unlock size={11} />}
+          </button>
+        )}
         {isAdmin && <DeleteButton onDelete={onDelete} size={11} />}
       </div>
     </div>
@@ -248,42 +403,104 @@ function TagRow({
 
 // ─── Add tag form ─────────────────────────────────────────────────────────────
 
-function AddTagRow({ spaceId, sortOrder, onAdd }: {
-  spaceId: number; sortOrder: number;
-  onAdd: (d: { spaceId: number; name: string; type: "postbox" | "chat"; icon: string; sortOrder: number }) => void;
+function AddTagRow({
+  spaceId,
+  sortOrder,
+  onAdd,
+}: {
+  spaceId: number;
+  sortOrder: number;
+  onAdd: (d: {
+    spaceId: number;
+    name: string;
+    type: "postbox" | "chat";
+    icon: string;
+    sortOrder: number;
+  }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<"postbox" | "chat">("postbox");
   const inputRef = useRef<HTMLInputElement>(null);
-  const open_ = () => { setOpen(true); setName(""); setTimeout(() => inputRef.current?.focus(), 0); };
-  const submit = () => {
-    const t = name.trim(); if (!t) return;
-    onAdd({ spaceId, name: t, type, icon: type === "postbox" ? "📬" : "💬", sortOrder });
-    setOpen(false); setName(""); setType("postbox");
+  const open_ = () => {
+    setOpen(true);
+    setName("");
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
-  if (!open) return (
-    <button onClick={open_} className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-sidebar-accent/30 transition-all duration-200 group/addtag">
-      <Plus size={11} className="shrink-0 group-hover/addtag:text-primary transition-colors" /><span>Add channel</span>
-    </button>
-  );
+  const submit = () => {
+    const t = name.trim();
+    if (!t) return;
+    onAdd({
+      spaceId,
+      name: t,
+      type,
+      icon: type === "postbox" ? "📬" : "💬",
+      sortOrder,
+    });
+    setOpen(false);
+    setName("");
+    setType("postbox");
+  };
+  if (!open)
+    return (
+      <button
+        onClick={open_}
+        className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-sidebar-accent/30 transition-all duration-200 group/addtag"
+      >
+        <Plus
+          size={11}
+          className="shrink-0 group-hover/addtag:text-primary transition-colors"
+        />
+        <span>Add channel</span>
+      </button>
+    );
   return (
     <div className="px-2 py-1.5 space-y-1.5">
       <div className="flex gap-1">
         {(["postbox", "chat"] as const).map((t) => (
-          <button key={t} onClick={() => setType(t)} className={`flex-1 text-[11px] py-1 rounded transition-colors ${type === t ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground/50 border border-sidebar-border/50 hover:text-muted-foreground"}`}>
+          <button
+            key={t}
+            onClick={() => setType(t)}
+            className={`flex-1 text-[11px] py-1 rounded transition-colors ${type === t ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground/50 border border-sidebar-border/50 hover:text-muted-foreground"}`}
+          >
             {t === "postbox" ? "📬 Postbox" : "💬 Chat"}
           </button>
         ))}
       </div>
       <div className="flex items-center gap-1 bg-sidebar-accent/60 border border-primary/40 rounded-md px-2 py-1.5">
-        <input ref={inputRef} value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") setOpen(false); }}
-          onBlur={() => { if (!name.trim()) setOpen(false); }}
+        <input
+          ref={inputRef}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") setOpen(false);
+          }}
+          onBlur={() => {
+            if (!name.trim()) setOpen(false);
+          }}
           placeholder="Channel name…"
-          className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 outline-none" />
-        <button onMouseDown={(e) => { e.preventDefault(); submit(); }} disabled={!name.trim()} className="text-primary hover:text-primary/80 disabled:opacity-30 shrink-0"><Check size={13} /></button>
-        <button onMouseDown={(e) => { e.preventDefault(); setOpen(false); }} className="text-muted-foreground/50 hover:text-foreground shrink-0"><X size={13} /></button>
+          className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 outline-none"
+        />
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          disabled={!name.trim()}
+          className="text-primary hover:text-primary/80 disabled:opacity-30 shrink-0"
+        >
+          <Check size={13} />
+        </button>
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setOpen(false);
+          }}
+          className="text-muted-foreground/50 hover:text-foreground shrink-0"
+        >
+          <X size={13} />
+        </button>
       </div>
     </div>
   );
@@ -295,23 +512,66 @@ function AddSpaceRow({ onAdd }: { onAdd: (name: string) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const open_ = () => { setOpen(true); setName(""); setTimeout(() => inputRef.current?.focus(), 0); };
-  const submit = () => { const t = name.trim(); if (t) onAdd(t); setOpen(false); setName(""); };
-  if (!open) return (
-    <button onClick={open_} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-sidebar-accent/40 transition-all duration-200 group/add">
-      <Plus size={13} className="shrink-0 group-hover/add:text-primary transition-colors" /><span>New space</span>
-    </button>
-  );
+  const open_ = () => {
+    setOpen(true);
+    setName("");
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+  const submit = () => {
+    const t = name.trim();
+    if (t) onAdd(t);
+    setOpen(false);
+    setName("");
+  };
+  if (!open)
+    return (
+      <button
+        onClick={open_}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-sidebar-accent/40 transition-all duration-200 group/add"
+      >
+        <Plus
+          size={13}
+          className="shrink-0 group-hover/add:text-primary transition-colors"
+        />
+        <span>New space</span>
+      </button>
+    );
   return (
     <div className="px-3 py-1.5">
       <div className="flex items-center gap-1.5 bg-sidebar-accent/60 border border-primary/40 rounded-md px-2 py-1.5">
-        <input ref={inputRef} value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") setOpen(false); }}
-          onBlur={() => { if (!name.trim()) setOpen(false); }}
+        <input
+          ref={inputRef}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") setOpen(false);
+          }}
+          onBlur={() => {
+            if (!name.trim()) setOpen(false);
+          }}
           placeholder="Space name…"
-          className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 outline-none" />
-        <button onMouseDown={(e) => { e.preventDefault(); submit(); }} disabled={!name.trim()} className="text-primary hover:text-primary/80 disabled:opacity-30 shrink-0"><Check size={13} /></button>
-        <button onMouseDown={(e) => { e.preventDefault(); setOpen(false); }} className="text-muted-foreground/50 hover:text-foreground shrink-0"><X size={13} /></button>
+          className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 outline-none"
+        />
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          disabled={!name.trim()}
+          className="text-primary hover:text-primary/80 disabled:opacity-30 shrink-0"
+        >
+          <Check size={13} />
+        </button>
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setOpen(false);
+          }}
+          className="text-muted-foreground/50 hover:text-foreground shrink-0"
+        >
+          <X size={13} />
+        </button>
       </div>
     </div>
   );
@@ -327,21 +587,29 @@ interface SidebarProps {
 export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
   const queryClient = useQueryClient();
   const { data: spaces, isLoading } = useGetSpaces();
-  const { data: unreadData } = useGetUnreadCounts({ query: { refetchInterval: 10000 } });
+  const { data: unreadData } = useGetUnreadCounts({
+    query: { refetchInterval: 10000 },
+  });
   const { data: me } = useGetMe();
   const { signOut } = useClerk();
 
   const invalidateSpaces = useCallback(
     () => queryClient.invalidateQueries({ queryKey: getGetSpacesQueryKey() }),
-    [queryClient]
+    [queryClient],
   );
 
-  const createSpace = useCreateSpace({ mutation: { onSuccess: invalidateSpaces } });
-  const updateSpace = useUpdateSpace({ mutation: { onSuccess: invalidateSpaces } });
-  const deleteSpace = useDeleteSpace({ mutation: { onSuccess: invalidateSpaces } });
-  const createTag   = useCreateTag({ mutation: { onSuccess: invalidateSpaces } });
-  const updateTag   = useUpdateTag({ mutation: { onSuccess: invalidateSpaces } });
-  const deleteTag   = useDeleteTag({ mutation: { onSuccess: invalidateSpaces } });
+  const createSpace = useCreateSpace({
+    mutation: { onSuccess: invalidateSpaces },
+  });
+  const updateSpace = useUpdateSpace({
+    mutation: { onSuccess: invalidateSpaces },
+  });
+  const deleteSpace = useDeleteSpace({
+    mutation: { onSuccess: invalidateSpaces },
+  });
+  const createTag = useCreateTag({ mutation: { onSuccess: invalidateSpaces } });
+  const updateTag = useUpdateTag({ mutation: { onSuccess: invalidateSpaces } });
+  const deleteTag = useDeleteTag({ mutation: { onSuccess: invalidateSpaces } });
 
   const isAdmin = me?.isAdmin ?? false;
   const unreadCounts = unreadData?.counts || {};
@@ -374,27 +642,42 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
   const commitDrop = useCallback(() => {
     const drag = dragItemRef.current;
     const drop = dropTargetRef.current;
-    if (!drag || !drop) { clearDrag(); return; }
+    if (!drag || !drop) {
+      clearDrag();
+      return;
+    }
 
     // ── Reorder spaces ──────────────────────────────────────────────────────
     if (drag.kind === "space" && drop.kind === "space") {
-      if (drag.id === drop.id) { clearDrag(); return; }
+      if (drag.id === drop.id) {
+        clearDrag();
+        return;
+      }
       const fromIdx = sorted.findIndex((s) => s.id === drag.id);
-      const toIdx   = sorted.findIndex((s) => s.id === drop.id);
+      const toIdx = sorted.findIndex((s) => s.id === drop.id);
       let insertIdx = drop.position === "above" ? toIdx : toIdx + 1;
       if (fromIdx < insertIdx) insertIdx--; // account for removal
-      if (fromIdx === insertIdx) { clearDrag(); return; }
+      if (fromIdx === insertIdx) {
+        clearDrag();
+        return;
+      }
       const reordered = reorder(sorted, fromIdx, insertIdx);
       reordered.forEach((s, i) => {
-        if (s.sortOrder !== i) updateSpace.mutate({ spaceId: s.id, data: { sortOrder: i } });
+        if (s.sortOrder !== i)
+          updateSpace.mutate({ spaceId: s.id, data: { sortOrder: i } });
       });
     }
 
     // ── Move / reorder tags ─────────────────────────────────────────────────
     if (drag.kind === "tag") {
       const srcSpace = sorted.find((s) => s.id === drag.spaceId);
-      if (!srcSpace) { clearDrag(); return; }
-      const srcTags = [...(srcSpace.tags ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+      if (!srcSpace) {
+        clearDrag();
+        return;
+      }
+      const srcTags = [...(srcSpace.tags ?? [])].sort(
+        (a, b) => a.sortOrder - b.sortOrder,
+      );
       const fromIdx = srcTags.findIndex((t) => t.id === drag.id);
 
       if (drop.kind === "tag") {
@@ -402,34 +685,51 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
 
         if (dstSpaceId === drag.spaceId) {
           // ── Same space reorder ────────────────────────────────────────────
-          if (drag.id === drop.id) { clearDrag(); return; }
+          if (drag.id === drop.id) {
+            clearDrag();
+            return;
+          }
           const toIdx = srcTags.findIndex((t) => t.id === drop.id);
           let insertIdx = drop.position === "above" ? toIdx : toIdx + 1;
           if (fromIdx < insertIdx) insertIdx--;
-          if (fromIdx === insertIdx) { clearDrag(); return; }
+          if (fromIdx === insertIdx) {
+            clearDrag();
+            return;
+          }
           const reordered = reorder(srcTags, fromIdx, insertIdx);
           reordered.forEach((t, i) => {
-            if (t.sortOrder !== i) updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
+            if (t.sortOrder !== i)
+              updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
           });
         } else {
           // ── Cross-space move, drop relative to a tag ──────────────────────
           const dstSpace = sorted.find((s) => s.id === dstSpaceId);
-          if (!dstSpace) { clearDrag(); return; }
-          const dstTags = [...(dstSpace.tags ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+          if (!dstSpace) {
+            clearDrag();
+            return;
+          }
+          const dstTags = [...(dstSpace.tags ?? [])].sort(
+            (a, b) => a.sortOrder - b.sortOrder,
+          );
           const refIdx = dstTags.findIndex((t) => t.id === drop.id);
           const insertAt = drop.position === "above" ? refIdx : refIdx + 1;
 
           // Remove from source, fix source sort orders
           const newSrc = srcTags.filter((t) => t.id !== drag.id);
           newSrc.forEach((t, i) => {
-            if (t.sortOrder !== i) updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
+            if (t.sortOrder !== i)
+              updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
           });
           // Insert into dest, fix dest sort orders
           const newDst = [...dstTags];
           newDst.splice(insertAt, 0, { id: drag.id } as Tag);
-          updateTag.mutate({ tagId: drag.id, data: { spaceId: dstSpaceId, sortOrder: insertAt } });
+          updateTag.mutate({
+            tagId: drag.id,
+            data: { spaceId: dstSpaceId, sortOrder: insertAt },
+          });
           newDst.forEach((t, i) => {
-            if (t.id !== drag.id && t.sortOrder !== i) updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
+            if (t.id !== drag.id && t.sortOrder !== i)
+              updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
           });
         }
       }
@@ -437,15 +737,27 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
       if (drop.kind === "space-body") {
         // ── Drop tag onto a space header → append at end ──────────────────
         const dstSpaceId = drop.spaceId;
-        if (dstSpaceId === drag.spaceId) { clearDrag(); return; }
+        if (dstSpaceId === drag.spaceId) {
+          clearDrag();
+          return;
+        }
         const dstSpace = sorted.find((s) => s.id === dstSpaceId);
-        if (!dstSpace) { clearDrag(); return; }
-        const dstTags = [...(dstSpace.tags ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+        if (!dstSpace) {
+          clearDrag();
+          return;
+        }
+        const dstTags = [...(dstSpace.tags ?? [])].sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        );
         const newSrc = srcTags.filter((t) => t.id !== drag.id);
         newSrc.forEach((t, i) => {
-          if (t.sortOrder !== i) updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
+          if (t.sortOrder !== i)
+            updateTag.mutate({ tagId: t.id, data: { sortOrder: i } });
         });
-        updateTag.mutate({ tagId: drag.id, data: { spaceId: dstSpaceId, sortOrder: dstTags.length } });
+        updateTag.mutate({
+          tagId: drag.id,
+          data: { spaceId: dstSpaceId, sortOrder: dstTags.length },
+        });
       }
     }
 
@@ -455,13 +767,19 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
   // ── Drag event helpers ────────────────────────────────────────────────────
 
   const spaceHandlers = (space: { id: number }) => ({
-    onDragStart: () => { dragItemRef.current = { kind: "space", id: space.id }; },
+    onDragStart: () => {
+      dragItemRef.current = { kind: "space", id: space.id };
+    },
     onDragOver: (e: React.DragEvent) => {
       const drag = dragItemRef.current;
       if (!drag) return;
       const el = e.currentTarget as HTMLElement;
       if (drag.kind === "space") {
-        setDropTarget({ kind: "space", id: space.id, position: cursorPosition(e, el) });
+        setDropTarget({
+          kind: "space",
+          id: space.id,
+          position: cursorPosition(e, el),
+        });
       } else if (drag.kind === "tag" && drag.spaceId !== space.id) {
         setDropTarget({ kind: "space-body", spaceId: space.id });
       }
@@ -471,44 +789,65 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
   });
 
   const tagHandlers = (tag: Tag, spaceId: number) => ({
-    onDragStart: () => { dragItemRef.current = { kind: "tag", id: tag.id, spaceId }; },
+    onDragStart: () => {
+      dragItemRef.current = { kind: "tag", id: tag.id, spaceId };
+    },
     onDragOver: (e: React.DragEvent) => {
       const drag = dragItemRef.current;
       if (!drag || drag.kind !== "tag") return;
       const el = e.currentTarget as HTMLElement;
-      setDropTarget({ kind: "tag", id: tag.id, spaceId, position: cursorPosition(e, el) });
+      setDropTarget({
+        kind: "tag",
+        id: tag.id,
+        spaceId,
+        position: cursorPosition(e, el),
+      });
     },
     onDragLeave: () => setDropTarget(null),
     onDrop: (e: React.DragEvent) => commitDrop(),
   });
 
   return (
-    <div className="flex flex-col h-full w-full select-none" onDragOver={(e) => e.preventDefault()}>
+    <div
+      className="flex flex-col h-full w-full select-none"
+      onDragOver={(e) => e.preventDefault()}
+    >
       {/* Header */}
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border/50 shrink-0">
         <div className="flex items-center gap-3 text-primary">
-          <Feather size={20} className="stroke-1" />
-          <span className="font-serif text-lg tracking-wide font-medium">The Room</span>
+          {/* <Feather size={20} className="stroke-1" /> */}
+          <span className="font-serif text-lg tracking-wide font-medium">
+            Kothadi
+          </span>
         </div>
       </div>
 
       {/* Spaces + tags */}
       <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar">
         {isLoading ? (
-          <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
         ) : (
           <>
             {sorted.map((space) => {
-              const spaceTags = [...(space.tags ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+              const spaceTags = [...(space.tags ?? [])].sort(
+                (a, b) => a.sortOrder - b.sortOrder,
+              );
               const sh = spaceHandlers(space);
               return (
                 <div key={space.id}>
                   <SpaceHeader
                     space={space}
                     isAdmin={isAdmin}
-                    dragging={dragItemRef.current?.kind === "space" && dragItemRef.current.id === space.id}
+                    dragging={
+                      dragItemRef.current?.kind === "space" &&
+                      dragItemRef.current.id === space.id
+                    }
                     dropTarget={dropTarget}
-                    onRename={(name) => updateSpace.mutate({ spaceId: space.id, data: { name } })}
+                    onRename={(name) =>
+                      updateSpace.mutate({ spaceId: space.id, data: { name } })
+                    }
                     onDelete={() => deleteSpace.mutate({ spaceId: space.id })}
                     {...sh}
                   />
@@ -522,11 +861,19 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
                           isActive={tag.id === activeTagId}
                           unread={unreadCounts[tag.id] || 0}
                           isAdmin={isAdmin}
-                          dragging={dragItemRef.current?.kind === "tag" && dragItemRef.current.id === tag.id}
+                          dragging={
+                            dragItemRef.current?.kind === "tag" &&
+                            dragItemRef.current.id === tag.id
+                          }
                           dropTarget={dropTarget}
                           onSelect={() => onSelectTag(tag)}
-                          onRename={(name) => updateTag.mutate({ tagId: tag.id, data: { name } })}
+                          onRename={(name) =>
+                            updateTag.mutate({ tagId: tag.id, data: { name } })
+                          }
                           onDelete={() => deleteTag.mutate({ tagId: tag.id })}
+                          onToggleAdminOnly={() =>
+                            updateTag.mutate({ tagId: tag.id, data: { isAdminOnly: !tag.isAdminOnly } })
+                          }
                           {...th}
                         />
                       );
@@ -540,7 +887,11 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
                 </div>
               );
             })}
-            <AddSpaceRow onAdd={(name) => createSpace.mutate({ data: { name, sortOrder: sorted.length } })} />
+            <AddSpaceRow
+              onAdd={(name) =>
+                createSpace.mutate({ data: { name, sortOrder: sorted.length } })
+              }
+            />
           </>
         )}
       </div>
@@ -550,16 +901,30 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
         <div className="flex items-center justify-between bg-sidebar-accent/30 rounded-xl p-3 border border-sidebar-border/50">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-8 h-8 rounded-full bg-sidebar-accent border border-sidebar-border overflow-hidden shrink-0 flex items-center justify-center text-xs font-serif text-primary">
-              {me?.avatarUrl
-                ? <img src={me.avatarUrl} alt={me.displayName} className="w-full h-full object-cover" />
-                : me?.displayName?.charAt(0).toUpperCase() || "?"}
+              {me?.avatarUrl ? (
+                <img
+                  src={me.avatarUrl}
+                  alt={me.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                me?.displayName?.charAt(0).toUpperCase() || "?"
+              )}
             </div>
             <div className="flex flex-col truncate">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium text-foreground truncate">{me?.displayName}</span>
-                {isAdmin && <span className="text-[9px] font-bold uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1 py-px shrink-0">admin</span>}
+                <span className="text-sm font-medium text-foreground truncate">
+                  {me?.displayName}
+                </span>
+                {isAdmin && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1 py-px shrink-0">
+                    admin
+                  </span>
+                )}
               </div>
-              <span className="text-xs text-muted-foreground truncate">{me?.email}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {me?.email}
+              </span>
             </div>
           </div>
           <button

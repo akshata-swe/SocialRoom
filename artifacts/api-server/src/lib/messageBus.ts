@@ -14,6 +14,7 @@ export type BusEvent =
   | { type: "new"; payload: object }
   | { type: "edit"; payload: { id: number; content: string } }
   | { type: "delete"; payload: { id: number } }
+  | { type: "clear"; payload: Record<string, never> }
   | { type: "read"; payload: { upToId: number } }
   | { type: "reaction"; payload: { messageId: number; reactions: Record<string, string[]> } };
 

@@ -47,14 +47,16 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
           </div>
           <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground">{tag.name}</h2>
         </div>
-        <button
-          onClick={onNewLetter}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-medium hover:bg-primary/90 transition-all hover-elevate shadow-md hover:shadow-primary/20"
-          data-testid="button-new-letter"
-        >
-          <PenTool size={18} className="stroke-[1.5]" />
-          <span>Write</span>
-        </button>
+        {!(tag.isAdminOnly && !me?.isAdmin) && (
+          <button
+            onClick={onNewLetter}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-medium hover:bg-primary/90 transition-all hover-elevate shadow-md hover:shadow-primary/20"
+            data-testid="button-new-letter"
+          >
+            <PenTool size={18} className="stroke-[1.5]" />
+            <span>Write</span>
+          </button>
+        )}
       </div>
 
       {/* Grid */}

@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ClearChatHistoryParams,
   GetLettersParams,
   GetMessagesParams,
   HealthStatus,
@@ -1337,6 +1338,84 @@ export const useSendMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getClearChatHistoryUrl = (params: ClearChatHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/messages/clear?${stringifiedParams}` : `/api/messages/clear`
+}
+
+/**
+ * @summary Delete all messages in a channel (admin only)
+ */
+export const clearChatHistory = async (params: ClearChatHistoryParams, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getClearChatHistoryUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearChatHistoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearChatHistory>>, TError,{params: ClearChatHistoryParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearChatHistory>>, TError,{params: ClearChatHistoryParams}, TContext> => {
+
+const mutationKey = ['clearChatHistory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearChatHistory>>, {params: ClearChatHistoryParams}> = (props) => {
+          const {params} = props ?? {};
+
+          return  clearChatHistory(params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearChatHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof clearChatHistory>>>
+
+    export type ClearChatHistoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete all messages in a channel (admin only)
+ */
+export const useClearChatHistory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearChatHistory>>, TError,{params: ClearChatHistoryParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearChatHistory>>,
+        TError,
+        {params: ClearChatHistoryParams},
+        TContext
+      > => {
+      return useMutation(getClearChatHistoryMutationOptions(options));
     }
 
 export const getUpdateMessageUrl = (messageId: number,) => {

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean } from "drizzle-orm/pg-core";
 import { spacesTable } from "./spaces";
 
 export const tagsTable = pgTable("tags", {
@@ -11,6 +11,7 @@ export const tagsTable = pgTable("tags", {
   type: text("type").notNull().$type<"postbox" | "chat">(),
   icon: text("icon"),
   sortOrder: integer("sort_order").notNull().default(0),
+  isAdminOnly: boolean("is_admin_only").notNull().default(false),
 });
 
 export type Tag = typeof tagsTable.$inferSelect;

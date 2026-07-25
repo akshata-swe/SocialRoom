@@ -31,7 +31,8 @@ export const GetSpacesResponseItem = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 }))
 })
 export const GetSpacesResponse = zod.array(GetSpacesResponseItem)
@@ -60,7 +61,8 @@ export const CreateSpaceResponse = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 }))
 })
 
@@ -92,7 +94,8 @@ export const UpdateSpaceResponse = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 }))
 })
 
@@ -118,7 +121,8 @@ export const GetTagsResponseItem = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 })
 export const GetTagsResponse = zod.array(GetTagsResponseItem)
 
@@ -145,7 +149,8 @@ export const CreateTagResponse = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 })
 
 
@@ -163,7 +168,8 @@ export const UpdateTagBody = zod.object({
   "name": zod.string().min(1).optional(),
   "icon": zod.string().optional(),
   "sortOrder": zod.number().optional(),
-  "spaceId": zod.number().optional()
+  "spaceId": zod.number().optional(),
+  "isAdminOnly": zod.boolean().optional()
 })
 
 export const UpdateTagResponse = zod.object({
@@ -174,7 +180,8 @@ export const UpdateTagResponse = zod.object({
   "type": zod.enum(['postbox', 'chat']),
   "icon": zod.string().nullish(),
   "sortOrder": zod.number(),
-  "unreadCount": zod.number()
+  "unreadCount": zod.number(),
+  "isAdminOnly": zod.boolean()
 })
 
 
@@ -369,6 +376,16 @@ export const SendMessageResponse = zod.object({
   "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
   "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
 })
+
+
+/**
+ * @summary Delete all messages in a channel (admin only)
+ */
+export const ClearChatHistoryQueryParams = zod.object({
+  "tagId": zod.coerce.number()
+})
+
+export const ClearChatHistoryResponse = zod.void()
 
 
 /**

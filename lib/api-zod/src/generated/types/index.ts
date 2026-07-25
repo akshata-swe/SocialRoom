@@ -8,6 +8,7 @@
 
 export * from './attachment';
 export * from './attachmentInput';
+export * from './clearChatHistoryParams';
 export * from './getLettersParams';
 export * from './getMessagesParams';
 export * from './healthStatus';

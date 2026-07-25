@@ -56,6 +56,7 @@ export interface Tag {
   icon?: string | null;
   sortOrder: number;
   unreadCount: number;
+  isAdminOnly: boolean;
 }
 
 export interface Space {
@@ -100,6 +101,7 @@ export interface TagUpdateInput {
   icon?: string;
   sortOrder?: number;
   spaceId?: number;
+  isAdminOnly?: boolean;
 }
 
 export type UnreadCountsCounts = {[key: string]: number};
@@ -258,5 +260,9 @@ tagId: number;
  */
 before?: number;
 limit?: number;
+};
+
+export type ClearChatHistoryParams = {
+tagId: number;
 };
 

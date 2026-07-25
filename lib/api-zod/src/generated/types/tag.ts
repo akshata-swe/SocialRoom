@@ -17,4 +17,5 @@ export interface Tag {
   icon?: string | null;
   sortOrder: number;
   unreadCount: number;
+  isAdminOnly: boolean;
 }

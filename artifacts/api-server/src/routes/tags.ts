@@ -81,7 +81,7 @@ router.post("/tags", requireAuth, async (req, res) => {
     .replace(/^-|-$/g, "");
   const [created] = await db
     .insert(tagsTable)
-    .values({ spaceId, name, slug, type, icon, sortOrder })
+    .values({ spaceId, name, slug, type, icon, sortOrder, isAdminOnly: false })
     .returning();
   res.status(201).json({ ...created, unreadCount: 0 });
 });
@@ -89,7 +89,7 @@ router.post("/tags", requireAuth, async (req, res) => {
 router.patch("/tags/:tagId", requireAuth, async (req, res) => {
   const tagId = parseInt(req.params.tagId as string);
   const { userId } = req as AuthedRequest;
-  const { name, icon, sortOrder, spaceId } = req.body;
+  const { name, icon, sortOrder, spaceId, isAdminOnly } = req.body;
   const updates: Record<string, unknown> = {};
   if (name !== undefined) {
     updates.name = name;
@@ -101,6 +101,7 @@ router.patch("/tags/:tagId", requireAuth, async (req, res) => {
   if (icon !== undefined) updates.icon = icon;
   if (sortOrder !== undefined) updates.sortOrder = sortOrder;
   if (spaceId !== undefined) updates.spaceId = spaceId;
+  if (isAdminOnly !== undefined) updates.isAdminOnly = isAdminOnly;
   const [updated] = await db
     .update(tagsTable)
     .set(updates)

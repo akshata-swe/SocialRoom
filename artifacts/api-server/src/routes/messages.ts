@@ -5,9 +5,11 @@ import {
   messageReadsTable,
   messageReactionsTable,
   userProfilesTable,
+  tagsTable,
 } from "@workspace/db";
 import { eq, lt, ne, desc, and, sql, inArray } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
+import { isAdmin, requireAdmin } from "../middlewares/requireAdmin";
 import { broadcast, subscribe } from "../lib/messageBus";
 
 const router = Router();
@@ -197,6 +199,13 @@ router.post("/messages", requireAuth, async (req, res) => {
     return;
   }
 
+  // Block non-admins from posting in admin-only channels
+  const [tag] = await db.select().from(tagsTable).where(eq(tagsTable.id, tagId)).limit(1);
+  if (tag?.isAdminOnly && !isAdmin(userId)) {
+    res.status(403).json({ error: "This channel is read-only for non-admins" });
+    return;
+  }
+
   const authorName = await resolveDisplayName(userId);
 
   const [message] = await db
@@ -312,6 +321,27 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
 
   broadcast(existing.tagId, { type: "edit", payload: { id: messageId, content: content.trim() } });
   res.json(serializeMessage(updated, partnerLastReadId, reactions));
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /messages/:messageId
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// DELETE /messages/clear?tagId=xxx  — admin wipe entire chat history
+// ---------------------------------------------------------------------------
+
+router.delete("/messages/clear", requireAuth, requireAdmin, async (req, res) => {
+  const tagId = parseInt(req.query.tagId as string);
+  if (isNaN(tagId)) {
+    res.status(400).json({ error: "tagId is required" });
+    return;
+  }
+  await db.delete(messagesTable).where(eq(messagesTable.tagId, tagId));
+  // Also clear read cursors so unread counts reset
+  await db.delete(messageReadsTable).where(eq(messageReadsTable.tagId, tagId));
+  broadcast(tagId, { type: "clear", payload: {} });
+  res.status(204).end();
 });
 
 // ---------------------------------------------------------------------------

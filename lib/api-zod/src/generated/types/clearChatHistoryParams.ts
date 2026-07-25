@@ -6,11 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface TagUpdateInput {
-  /** @minLength 1 */
-  name?: string;
-  icon?: string;
-  sortOrder?: number;
-  spaceId?: number;
-  isAdminOnly?: boolean;
-}
+export type ClearChatHistoryParams = {
+tagId: number;
+};
