@@ -11,8 +11,8 @@ import {
 } from "@workspace/api-client-react";
 import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile, Camera, Clock, Eye, EyeOff } from "lucide-react";
-import { isToday, isYesterday, format, formatDistanceToNow } from "date-fns";
+import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile } from "lucide-react";
+import { isToday, isYesterday, format } from "date-fns";
 import EmojiPickerPopup from "./EmojiPickerPopup";
 
 interface ChatViewProps {
@@ -44,7 +44,6 @@ interface ChatStreamHandlers {
   onRead: (payload: { upToId: number }) => void;
   onReaction: (payload: { messageId: number; reactions: Record<string, string[]> }) => void;
   onClear: () => void;
-  onViewOnceViewed: (payload: { messageId: number }) => void;
 }
 
 function useChatStream(
@@ -77,9 +76,6 @@ function useChatStream(
     });
     es.addEventListener("clear", () => {
       try { handlersRef.current.onClear(); } catch { /* ignore */ }
-    });
-    es.addEventListener("view-once-viewed", (e: MessageEvent) => {
-      try { handlersRef.current.onViewOnceViewed(JSON.parse(e.data)); } catch { /* ignore */ }
     });
     es.onerror = () => setStatus("error");
     return () => es.close();
@@ -129,16 +125,6 @@ export default function ChatView({ tag }: ChatViewProps) {
 
   // Emoji picker state — tracks which message's picker is open + its anchor rect
   const [pickerAnchor, setPickerAnchor] = useState<{ msgId: number; rect: DOMRect } | null>(null);
-
-  // View-once photo — pending upload before send
-  const [viewOncePending, setViewOncePending] = useState<{
-    preview: string;   // local object URL for thumbnail
-    uploadedUrl: string | null;
-    uploading: boolean;
-  } | null>(null);
-  // Full-screen viewer modal
-  const [viewOnceModal, setViewOnceModal] = useState<{ url: string } | null>(null);
-  const viewOnceInputRef = useRef<HTMLInputElement>(null);
 
   const togglePicker = (msgId: number, e: React.MouseEvent) => {
     if (pickerAnchor?.msgId === msgId) {
@@ -228,21 +214,6 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  // Partner viewed a view-once photo — mark as opened in local cache
-  const handleViewOnceViewedSSE = useCallback(
-    ({ messageId }: { messageId: number }) => {
-      qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
-        prev?.map((m) => {
-          if (m.id !== messageId) return m;
-          const vo = (m as any).viewOnce;
-          return vo ? { ...m, viewOnce: { ...vo, status: "opened" } } : m;
-        }) ?? prev,
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tag.id],
-  );
-
   const streamStatus = useChatStream(tag.id, {
     onNew: handleNew,
     onEdit: handleEditSSE,
@@ -250,82 +221,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     onRead: handleReadSSE,
     onReaction: handleReactionSSE,
     onClear: handleClearSSE,
-    onViewOnceViewed: handleViewOnceViewedSSE,
   });
-
-  // ── View-once ─────────────────────────────────────────────────────────────
-
-  const handleViewOnceSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const preview = URL.createObjectURL(file);
-    setViewOncePending({ preview, uploadedUrl: null, uploading: true });
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const resp = await fetch("/api/upload", { method: "POST", credentials: "include", body: form });
-      if (!resp.ok) throw new Error("Upload failed");
-      const { url } = await resp.json();
-      setViewOncePending((prev) => prev ? { ...prev, uploadedUrl: url, uploading: false } : null);
-    } catch {
-      URL.revokeObjectURL(preview);
-      setViewOncePending(null);
-    }
-  };
-
-  const cancelViewOnce = () => {
-    if (viewOncePending?.preview) URL.revokeObjectURL(viewOncePending.preview);
-    setViewOncePending(null);
-  };
-
-  const sendViewOnce = async () => {
-    if (!viewOncePending?.uploadedUrl || !me) return;
-    try {
-      const resp = await fetch("/api/messages", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagId: tag.id, content: "", viewOnceUrl: viewOncePending.uploadedUrl }),
-      });
-      if (!resp.ok) throw new Error("Send failed");
-      const newMsg = await resp.json();
-      qc.setQueryData<Message[]>(messagesQueryKey, (prev) => {
-        if (!prev) return [newMsg];
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, newMsg];
-      });
-      cancelViewOnce();
-    } catch {
-      /* keep pending so user can retry */
-    }
-  };
-
-  const openViewOnce = async (msgId: number) => {
-    try {
-      const resp = await fetch(`/api/messages/${msgId}/view`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        alert((err as any).error ?? "Cannot open this photo");
-        return;
-      }
-      const { url } = await resp.json();
-      setViewOnceModal({ url });
-      // Optimistically mark as opened in cache
-      qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
-        prev?.map((m) => {
-          if (m.id !== msgId) return m;
-          const vo = (m as any).viewOnce;
-          return vo ? { ...m, viewOnce: { ...vo, status: "opened" } } : m;
-        }) ?? prev,
-      );
-    } catch {
-      alert("Could not open photo — please try again.");
-    }
-  };
 
   // ── React ─────────────────────────────────────────────────────────────────
 
@@ -425,7 +321,6 @@ export default function ChatView({ tag }: ChatViewProps) {
   // ── JSX ───────────────────────────────────────────────────────────────────
 
   return (
-    <>
     <div
       className="flex flex-col h-full w-full max-w-4xl mx-auto"
       onClick={() => setConfirmDeleteId(null)}
@@ -522,87 +417,17 @@ export default function ChatView({ tag }: ChatViewProps) {
                           </button>
                         </div>
                       </div>
-                    ) : (() => {
-                      const vo = (msg as any).viewOnce as {
-                        status: "unseen" | "opened" | "expired";
-                        expiresAt: string | null;
-                        isSender: boolean;
-                      } | null;
-
-                      return (
-                        <>
-                          {/* View-once photo card */}
-                          {vo && (
-                            <div className={`
-                              flex flex-col gap-1.5 select-none
-                              ${isMe ? "items-end" : "items-start"}
-                            `}>
-                              {vo.status === "unseen" && !vo.isSender ? (
-                                <button
-                                  onClick={() => openViewOnce(msg.id)}
-                                  className={`
-                                    flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all
-                                    bg-card border-primary/40 hover:border-primary hover:bg-primary/5
-                                    ${isLastInGroup ? "rounded-tl-sm" : ""}
-                                  `}
-                                >
-                                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                                    <Camera size={18} className="text-primary" />
-                                  </div>
-                                  <div className="flex flex-col items-start">
-                                    <span className="text-sm font-medium text-foreground">Photo</span>
-                                    <span className="text-xs text-primary font-medium flex items-center gap-1">
-                                      <Eye size={11} /> Tap to view once
-                                    </span>
-                                    {vo.expiresAt && (
-                                      <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5 mt-0.5">
-                                        <Clock size={9} />
-                                        Expires {formatDistanceToNow(new Date(vo.expiresAt), { addSuffix: true })}
-                                      </span>
-                                    )}
-                                  </div>
-                                </button>
-                              ) : (
-                                <div className={`
-                                  flex items-center gap-3 px-4 py-3 rounded-2xl border
-                                  ${isMe
-                                    ? "bg-primary/10 border-primary/20 text-primary/70"
-                                    : "bg-muted/40 border-border/40 text-muted-foreground"
-                                  }
-                                  ${isLastInGroup ? (isMe ? "rounded-tr-sm" : "rounded-tl-sm") : ""}
-                                `}>
-                                  <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                                    {vo.status === "expired"
-                                      ? <EyeOff size={15} className="text-muted-foreground/50" />
-                                      : <Eye size={15} className="opacity-50" />
-                                    }
-                                  </div>
-                                  <div className="flex flex-col items-start">
-                                    <span className="text-sm font-medium">Photo</span>
-                                    <span className="text-xs opacity-70">
-                                      {vo.status === "opened" ? "Opened" : "Expired"}
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Regular text bubble (only shown when there's actual content) */}
-                          {msg.content && (
-                            <div className={`
-                              px-5 py-3 text-[15px] leading-relaxed shadow-sm font-light
-                              ${isMe
-                                ? `bg-primary text-primary-foreground ${isLastInGroup ? "rounded-2xl rounded-tr-sm" : "rounded-2xl"}`
-                                : `bg-card border border-border/60 text-foreground ${isLastInGroup ? "rounded-2xl rounded-tl-sm" : "rounded-2xl"}`
-                              }
-                            `}>
-                              {msg.content}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
+                    ) : (
+                      <div className={`
+                        px-5 py-3 text-[15px] leading-relaxed shadow-sm font-light
+                        ${isMe
+                          ? `bg-primary text-primary-foreground ${isLastInGroup ? "rounded-2xl rounded-tr-sm" : "rounded-2xl"}`
+                          : `bg-card border border-border/60 text-foreground ${isLastInGroup ? "rounded-2xl rounded-tl-sm" : "rounded-2xl"}`
+                        }
+                      `}>
+                        {msg.content}
+                      </div>
+                    )}
 
                     {/* Action buttons — only for own messages, always visible but subtle */}
                     {isMe && !isEditing && (
@@ -706,15 +531,6 @@ export default function ChatView({ tag }: ChatViewProps) {
         />
       )}
 
-      {/* Hidden file input for view-once photos */}
-      <input
-        ref={viewOnceInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleViewOnceSelect}
-      />
-
       {/* Input area */}
       <div className="shrink-0 p-4 md:p-6 bg-background/80 backdrop-blur-md border-t border-border/30">
         {isReadOnly ? (
@@ -724,54 +540,15 @@ export default function ChatView({ tag }: ChatViewProps) {
           </div>
         ) : (
           <>
-            {/* View-once pending preview */}
-            {viewOncePending && (
-              <div className="max-w-3xl mx-auto mb-3 flex items-center gap-3 bg-card border border-primary/30 rounded-2xl px-4 py-3">
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted">
-                  <img src={viewOncePending.preview} alt="View once preview" className="w-full h-full object-cover opacity-80" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">View once photo</p>
-                  <p className="text-xs text-muted-foreground/60">
-                    {viewOncePending.uploading ? "Uploading…" : "Ready — partner can view this once"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {!viewOncePending.uploading && (
-                    <button
-                      onClick={sendViewOnce}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      <Send size={12} /> Send
-                    </button>
-                  )}
-                  {viewOncePending.uploading && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
-                  <button onClick={cancelViewOnce} className="p-1.5 rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-all">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-
             <form
               onSubmit={handleSend}
               className="relative max-w-3xl mx-auto flex items-end gap-3 bg-card border border-border rounded-3xl p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
             >
-              {/* View-once camera button */}
-              <button
-                type="button"
-                onClick={() => viewOnceInputRef.current?.click()}
-                className="shrink-0 p-2.5 rounded-full text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-all mb-0.5 ml-0.5"
-                title="Send a view-once photo"
-                disabled={!!viewOncePending}
-              >
-                <Camera size={18} />
-              </button>
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={handleInputChange}
-                placeholder="Whisper something…"
+                placeholder=""
                 className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:outline-none focus:ring-0 px-2 py-2.5 text-foreground placeholder:text-muted-foreground/50 font-light custom-scrollbar"
                 rows={1}
                 onKeyDown={(e) => {
@@ -832,35 +609,5 @@ export default function ChatView({ tag }: ChatViewProps) {
         )}
       </div>
     </div>
-
-      {/* View-once fullscreen modal */}
-      {viewOnceModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={() => setViewOnceModal(null)}
-        >
-          <div
-            className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center gap-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={viewOnceModal.url}
-              alt="View once photo"
-              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
-            />
-            <div className="flex items-center gap-2 text-white/60 text-xs">
-              <EyeOff size={12} />
-              <span>You can only view this once — it won't be available again after you close</span>
-            </div>
-            <button
-              onClick={() => setViewOnceModal(null)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-black/60 border border-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
   );
 }
