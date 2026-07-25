@@ -377,7 +377,7 @@ export default function ChatView({ tag }: ChatViewProps) {
 
                     {/* Bubble or edit textarea */}
                     {isEditing ? (
-                      <div className="flex flex-col gap-2 w-full min-w-[220px]">
+                      <div className="flex flex-col gap-2 w-full min-w-0">
                         <textarea
                           ref={editInputRef}
                           value={editContent}

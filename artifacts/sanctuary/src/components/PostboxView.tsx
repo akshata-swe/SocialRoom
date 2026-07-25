@@ -39,28 +39,29 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
   return (
     <div className="h-full flex flex-col w-full max-w-6xl mx-auto" onClick={() => setConfirmDeleteId(null)}>
       {/* Header */}
-      <div className="shrink-0 px-8 py-10 flex items-end justify-between border-b border-border/30">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 text-primary/80">
-            {tag.icon ? <span className="text-2xl">{tag.icon}</span> : <Mail size={24} className="stroke-1" />}
-            <span className="font-medium tracking-widest text-xs uppercase">{tag.slug}</span>
+      <div className="shrink-0 px-4 py-5 md:px-8 md:py-10 flex flex-row items-center justify-between gap-3 border-b border-border/30">
+        <div className="space-y-1 md:space-y-2 min-w-0">
+          <div className="flex items-center gap-2 text-primary/80">
+            {tag.icon ? <span className="text-xl md:text-2xl">{tag.icon}</span> : <Mail size={20} className="stroke-1" />}
+            <span className="font-medium tracking-widest text-xs uppercase truncate">{tag.slug}</span>
           </div>
-          <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground">{tag.name}</h2>
+          <h2 className="font-serif text-2xl md:text-3xl lg:text-4xl font-medium tracking-tight text-foreground truncate">{tag.name}</h2>
         </div>
         {!(tag.isAdminOnly && !me?.isAdmin) && (
           <button
             onClick={onNewLetter}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-medium hover:bg-primary/90 transition-all hover-elevate shadow-md hover:shadow-primary/20"
+            className="shrink-0 flex items-center gap-2 bg-primary text-primary-foreground px-4 md:px-5 py-2 md:py-2.5 rounded-full font-medium hover:bg-primary/90 transition-all hover-elevate shadow-md hover:shadow-primary/20 text-sm md:text-base"
             data-testid="button-new-letter"
           >
-            <PenTool size={18} className="stroke-[1.5]" />
+            <PenTool size={16} className="stroke-[1.5] md:hidden" />
+            <PenTool size={18} className="stroke-[1.5] hidden md:block" />
             <span>Write</span>
           </button>
         )}
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-10 custom-scrollbar">
         {isLoading ? (
           <div className="flex justify-center items-center h-40 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -70,10 +71,10 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
             <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center opacity-50">
               <Mail size={24} className="stroke-1 text-muted-foreground" />
             </div>
-            <p className="font-serif text-2xl text-muted-foreground font-medium">The postbox awaits your first letter.</p>
+            <p className="font-serif text-xl md:text-2xl text-muted-foreground font-medium">The postbox awaits your first letter.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {letters.map((letter) => {
               const isMyLetter = letter.authorId === me?.id;
               const isConfirming = confirmDeleteId === letter.id;
@@ -85,7 +86,7 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
                   tabIndex={0}
                   onClick={() => onReadLetter(letter.id)}
                   onKeyDown={(e) => e.key === "Enter" && onReadLetter(letter.id)}
-                  className="group relative text-left bg-card border border-card-border rounded-xl p-6 h-56 flex flex-col justify-between transition-all duration-300 hover-elevate hover:border-primary/30 shadow-sm cursor-pointer"
+                  className="group relative text-left bg-card border border-card-border rounded-xl p-4 md:p-6 min-h-[160px] md:h-56 flex flex-col justify-between transition-all duration-300 hover-elevate hover:border-primary/30 shadow-sm cursor-pointer"
                   data-testid={`letter-card-${letter.id}`}
                 >
                   {/* Unread dot — hidden when confirming delete to avoid overlap */}

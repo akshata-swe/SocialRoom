@@ -120,14 +120,14 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
         </button>
       </div>
 
-      <div className="flex-1 w-full max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8">
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-12 flex flex-col gap-6 md:gap-8">
         {/* Title */}
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="A title for this letter..."
-          className="w-full bg-transparent border-none text-4xl md:text-5xl font-serif font-medium text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 px-0"
+          className="w-full bg-transparent border-none text-3xl md:text-5xl font-serif font-medium text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 px-0"
         />
 
         {/* Content */}
@@ -135,7 +135,7 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write your thoughts..."
-          className="flex-1 w-full bg-transparent border-none resize-none text-lg md:text-xl font-serif text-foreground/90 font-light leading-relaxed placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 px-0 min-h-[300px]"
+          className="flex-1 w-full bg-transparent border-none resize-none text-base md:text-xl font-serif text-foreground/90 font-light leading-relaxed placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 px-0 min-h-[240px] md:min-h-[300px]"
         />
 
         {/* Footer Configuration */}

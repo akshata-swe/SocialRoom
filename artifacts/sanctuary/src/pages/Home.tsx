@@ -84,9 +84,9 @@ export default function Home() {
         )}
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 z-10 relative max-w-3xl mx-auto space-y-12">
-        <div className="space-y-6">
-          <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tight leading-tight">
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 z-10 relative max-w-3xl mx-auto space-y-8 md:space-y-12">
+        <div className="space-y-4 md:space-y-6">
+          <h1 className="font-serif text-4xl md:text-7xl font-medium tracking-tight leading-tight">
             A quiet room <br />{" "}
             <span className="text-primary italic">for two.</span>
           </h1>

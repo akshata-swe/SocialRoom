@@ -93,14 +93,15 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
 
   return (
     <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
-      <div className="min-h-full flex flex-col max-w-3xl mx-auto px-6 py-12 md:py-24 relative">
+      <div className="min-h-full flex flex-col max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-16 relative">
         {/* Close */}
         <button
           onClick={onClose}
-          className="fixed top-8 right-8 p-3 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 z-10"
+          className="fixed top-4 md:top-8 right-4 md:right-8 p-2.5 md:p-3 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 z-10"
           data-testid="button-close-reader"
         >
-          <X size={20} className="stroke-[1.5]" />
+          <X size={18} className="stroke-[1.5] md:hidden" />
+          <X size={20} className="stroke-[1.5] hidden md:block" />
         </button>
 
         {/* Delete — own letters only */}
@@ -108,24 +109,24 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
           <button
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
-            className={`fixed top-8 right-24 z-10 flex items-center gap-2 px-4 py-3 rounded-full border transition-all duration-200
+            className={`fixed top-4 md:top-8 right-16 md:right-24 z-10 flex items-center gap-2 px-3 md:px-4 py-2.5 md:py-3 rounded-full border transition-all duration-200
               ${confirmDelete
                 ? "bg-destructive text-destructive-foreground border-destructive shadow-lg"
                 : "bg-card border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
               }`}
             title={confirmDelete ? "Click again to permanently delete" : "Delete this letter"}
           >
-            <Trash2 size={16} strokeWidth={1.5} />
+            <Trash2 size={15} strokeWidth={1.5} />
             {confirmDelete && <span className="text-sm font-medium">Delete?</span>}
           </button>
         )}
 
-        <article className="bg-card border border-card-border rounded-2xl p-8 md:p-16 shadow-2xl space-y-12 relative overflow-hidden">
+        <article className="bg-card border border-card-border rounded-2xl p-5 md:p-10 lg:p-16 shadow-2xl space-y-8 md:space-y-12 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50" />
 
           {/* Header */}
-          <header className="space-y-6 text-center border-b border-border/50 pb-12">
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-foreground leading-tight">
+          <header className="space-y-4 md:space-y-6 text-center border-b border-border/50 pb-6 md:pb-12">
+            <h1 className="font-serif text-2xl md:text-4xl lg:text-5xl font-medium tracking-tight text-foreground leading-tight">
               {letter.title}
             </h1>
             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground font-light tracking-wide uppercase">
@@ -167,11 +168,11 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
           )}
 
           {/* Reactions + Comments */}
-          <footer className="pt-12 flex flex-col items-center gap-10">
+          <footer className="pt-6 md:pt-12 flex flex-col items-center gap-8 md:gap-10">
             <div className="h-px w-24 bg-border" />
 
             {/* Emoji reactions */}
-            <div className="flex items-center gap-3 bg-muted/30 p-2 rounded-full border border-border/50">
+            <div className="flex items-center gap-1.5 md:gap-3 bg-muted/30 p-1.5 md:p-2 rounded-full border border-border/50">
               {EMOJI_OPTIONS.map(emoji => {
                 const users = letter.reactions?.[emoji] ?? [];
                 const count = users.length;
@@ -180,13 +181,13 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className={`group relative flex items-center justify-center w-12 h-12 rounded-full border transition-all ${
+                    className={`group relative flex items-center justify-center w-9 h-9 md:w-12 md:h-12 rounded-full border transition-all ${
                       iMine
                         ? "bg-primary/20 border-primary/40 scale-110"
                         : "border-transparent hover:bg-card hover:border-border"
                     }`}
                   >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">{emoji}</span>
+                    <span className="text-lg md:text-2xl group-hover:scale-110 transition-transform">{emoji}</span>
                     {count > 0 && (
                       <span className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
                         {count}
