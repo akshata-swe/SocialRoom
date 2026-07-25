@@ -108,8 +108,10 @@ function SignUpPage() {
 function HomeRedirect() {
   return (
     <>
+      {/* Signed-in users see Home.tsx — it handles the notification check
+          and auto-redirects to /sanctuary once notification data loads */}
       <Show when="signed-in">
-        <Redirect to="/sanctuary" />
+        <Home />
       </Show>
       <Show when="signed-out">
         <Home />
