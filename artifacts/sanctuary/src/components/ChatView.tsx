@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   useGetMessages,
   useSendMessage,
@@ -13,7 +13,8 @@ import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
-import EmojiPickerPopup from "./EmojiPickerPopup";
+
+const EmojiPickerPopup = lazy(() => import("./EmojiPickerPopup"));
 
 interface ChatViewProps {
   tag: Tag;
@@ -524,11 +525,13 @@ export default function ChatView({ tag }: ChatViewProps) {
 
       {/* Emoji picker portal */}
       {pickerAnchor && (
-        <EmojiPickerPopup
-          anchor={pickerAnchor.rect}
-          onSelect={(emoji) => handleReact(pickerAnchor.msgId, emoji)}
-          onClose={() => setPickerAnchor(null)}
-        />
+        <Suspense fallback={null}>
+          <EmojiPickerPopup
+            anchor={pickerAnchor.rect}
+            onSelect={(emoji) => handleReact(pickerAnchor.msgId, emoji)}
+            onClose={() => setPickerAnchor(null)}
+          />
+        </Suspense>
       )}
 
       {/* Input area */}

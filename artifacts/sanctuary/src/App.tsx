@@ -9,9 +9,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { Loader2 } from "lucide-react";
 
+import { lazy, Suspense } from 'react';
 import Home from './pages/Home';
-import Sanctuary from './pages/Sanctuary';
 import OnboardingModal from './components/OnboardingModal';
+
+const Sanctuary = lazy(() => import('./pages/Sanctuary'));
 
 const queryClient = new QueryClient();
 
@@ -159,7 +161,15 @@ function OnboardingGate() {
     );
   }
 
-  return <Sanctuary />;
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/50" />
+      </div>
+    }>
+      <Sanctuary />
+    </Suspense>
+  );
 }
 
 function SanctuaryPortal() {

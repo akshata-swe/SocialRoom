@@ -69,9 +69,9 @@ export default function Home() {
 
       <header className="w-full flex justify-between items-center px-6 md:px-12 py-8 z-10 relative">
         <div className="flex items-center gap-3 text-primary">
-          <PenLine size={24} className="stroke-1" />
+          {/* <PenLine size={24} className="stroke-1" /> */}
           <span className="font-serif text-xl tracking-wide font-medium">
-            The Room
+            Kothadi
           </span>
         </div>
         {!isSignedIn && (
@@ -91,8 +91,7 @@ export default function Home() {
             <span className="text-primary italic">for two.</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-xl mx-auto font-light">
-            Leave letters and whispers for each other. Zero noise, zero
-            pressure, zero public performance. Your most private digital space.
+            Leave letters for each other.
           </p>
         </div>
 
@@ -108,7 +107,7 @@ export default function Home() {
           onClick={handleEnter}
           className="inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-primary/25"
         >
-          {isSignedIn ? "Enter the Room" : "Enter the Room"}
+          {isSignedIn ? "Enter" : "Enter"}
         </button>
       </main>
 

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, lazy, Suspense } from "react";
 import {
   useGetLetter,
   useReactToLetter,
@@ -10,8 +10,9 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Loader2, Paperclip, Trash2, Send, Smile } from "lucide-react";
-import EmojiPickerPopup from "./EmojiPickerPopup";
 import { format } from "date-fns";
+
+const EmojiPickerPopup = lazy(() => import("./EmojiPickerPopup"));
 
 interface LetterReaderProps {
   letterId: number;
@@ -216,11 +217,13 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
               </button>
 
               {pickerAnchor && (
-                <EmojiPickerPopup
-                  anchor={pickerAnchor}
-                  onSelect={handleReaction}
-                  onClose={() => setPickerAnchor(null)}
-                />
+                <Suspense fallback={null}>
+                  <EmojiPickerPopup
+                    anchor={pickerAnchor}
+                    onSelect={handleReaction}
+                    onClose={() => setPickerAnchor(null)}
+                  />
+                </Suspense>
               )}
             </div>
 
