@@ -98,19 +98,26 @@ router.post("/letters", requireAuth, async (req, res) => {
   const { userId } = req as AuthedRequest;
   const { title, content, tagIds, attachments = [] } = req.body;
 
-  if (!title || !content || !tagIds?.length) {
-    res.status(400).json({ error: "title, content, tagIds are required" });
+  if (!content || !tagIds?.length) {
+    res.status(400).json({ error: "content and tagIds are required" });
     return;
   }
 
+  // Fetch the tags once — needed for both admin check and welcome-notes title rule
+  const selectedTags = await db.select().from(tagsTable).where(inArray(tagsTable.id, tagIds));
+
   // Block non-admins from posting in admin-only channels
-  if (tagIds?.length) {
-    const tags = await db.select().from(tagsTable).where(inArray(tagsTable.id, tagIds));
-    const adminOnlyTag = tags.find((t) => t.isAdminOnly);
-    if (adminOnlyTag && !isAdmin(userId)) {
-      res.status(403).json({ error: "This channel is read-only for non-admins" });
-      return;
-    }
+  const adminOnlyTag = selectedTags.find((t) => t.isAdminOnly);
+  if (adminOnlyTag && !isAdmin(userId)) {
+    res.status(403).json({ error: "This channel is read-only for non-admins" });
+    return;
+  }
+
+  // Title is required unless every selected tag is the welcome-notes channel
+  const allWelcomeNotes = selectedTags.length > 0 && selectedTags.every((t) => t.slug === "welcome-notes");
+  if (!allWelcomeNotes && !title?.trim()) {
+    res.status(400).json({ error: "title is required for this channel" });
+    return;
   }
 
   // Resolve display name server-side from user_profiles — never trust the client body
@@ -120,7 +127,7 @@ router.post("/letters", requireAuth, async (req, res) => {
   const [letter] = await db
     .insert(lettersTable)
     .values({
-      title,
+      title: title?.trim() ?? "",
       content,
       authorId: userId,
       authorName,

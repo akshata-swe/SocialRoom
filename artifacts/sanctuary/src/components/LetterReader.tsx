@@ -126,9 +126,11 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
 
           {/* Header */}
           <header className="space-y-4 md:space-y-6 text-center border-b border-border/50 pb-6 md:pb-12">
-            <h1 className="font-serif text-2xl md:text-4xl lg:text-5xl font-medium tracking-tight text-foreground leading-tight">
-              {letter.title}
-            </h1>
+            {letter.title ? (
+              <h1 className="font-serif text-2xl md:text-4xl lg:text-5xl font-medium tracking-tight text-foreground leading-tight">
+                {letter.title}
+              </h1>
+            ) : null}
             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground font-light tracking-wide uppercase">
               <span>{letter.authorName}</span>
               <span className="w-1 h-1 rounded-full bg-primary/50" />

@@ -113,7 +113,7 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
 
                   <div className="space-y-4">
                     <h3 className="font-serif text-xl font-medium text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                      {letter.title}
+                      {letter.title || <span className="text-muted-foreground/50 italic font-light">untitled</span>}
                     </h3>
                     {letter.excerpt && (
                       <p className="text-muted-foreground text-sm line-clamp-3 font-light leading-relaxed">

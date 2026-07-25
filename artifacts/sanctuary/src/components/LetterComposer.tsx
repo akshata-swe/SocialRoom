@@ -31,6 +31,11 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
 
   const postboxTags = tags?.filter(t => t.type === "postbox") || [];
 
+  // Title is optional when every selected tag is the welcome-notes channel
+  const selectedTags = (tags ?? []).filter(t => selectedTagIds.includes(t.id));
+  const isWelcomeNotes =
+    selectedTags.length > 0 && selectedTags.every(t => t.slug === "welcome-notes");
+
   const handleToggleTag = (tagId: number) => {
     setSelectedTagIds(prev => 
       prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
@@ -64,7 +69,8 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
   };
 
   const handlePublish = () => {
-    if (!title.trim() || !content.trim() || selectedTagIds.length === 0 || !me) return;
+    const titleOk = isWelcomeNotes ? true : !!title.trim();
+    if (!titleOk || !content.trim() || selectedTagIds.length === 0 || !me) return;
 
     const blockContent = {
       blocks: [
@@ -111,7 +117,7 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
         
         <button
           onClick={handlePublish}
-          disabled={!title.trim() || !content.trim() || selectedTagIds.length === 0 || createLetterMutation.isPending || isUploading}
+          disabled={(isWelcomeNotes ? false : !title.trim()) || !content.trim() || selectedTagIds.length === 0 || createLetterMutation.isPending || isUploading}
           className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           data-testid="button-publish-letter"
         >
@@ -126,7 +132,7 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="A title for this letter..."
+          placeholder={isWelcomeNotes ? "A title… (optional)" : "A title for this letter..."}
           className="w-full bg-transparent border-none text-3xl md:text-5xl font-serif font-medium text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0 px-0"
         />
 
