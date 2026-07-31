@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X, Loader2, Paperclip, Trash2, Send, Smile } from "lucide-react";
 import { format } from "date-fns";
 
+
 const EmojiPickerPopup = lazy(() => import("./EmojiPickerPopup"));
 
 interface LetterReaderProps {
@@ -31,8 +32,24 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
+  const [commentPickerAnchor, setCommentPickerAnchor] = useState<DOMRect | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertCommentEmoji = (emoji: string) => {
+    const el = commentInputRef.current;
+    if (!el) { setCommentText(prev => prev + emoji); return; }
+    const start = el.selectionStart ?? commentText.length;
+    const end   = el.selectionEnd   ?? commentText.length;
+    const next  = commentText.slice(0, start) + emoji + commentText.slice(end);
+    setCommentText(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -253,21 +270,41 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
               )}
 
               {/* Comment input */}
-              <form onSubmit={handleComment} className="flex items-end gap-3 bg-muted/20 border border-border/40 rounded-2xl p-3 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+              <form onSubmit={handleComment} className="flex items-end gap-1 bg-muted/20 border border-border/40 rounded-2xl px-2 py-2 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                {/* Emoji button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setCommentPickerAnchor(prev => (prev ? null : rect));
+                    setPickerAnchor(null);
+                  }}
+                  className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all mb-0.5 ${
+                    commentPickerAnchor
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+                  }`}
+                  title="Emoji"
+                >
+                  <Smile size={15} />
+                </button>
+
                 <textarea
+                  ref={commentInputRef}
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Write a note…"
-                  className="flex-1 bg-transparent border-none resize-none focus:outline-none focus:ring-0 text-[14px] text-foreground placeholder:text-muted-foreground/40 font-light min-h-[40px] max-h-32 custom-scrollbar"
+                  className="flex-1 bg-transparent border-none resize-none focus:outline-none focus:ring-0 text-[14px] text-foreground placeholder:text-muted-foreground/40 font-light min-h-[40px] max-h-32 custom-scrollbar px-1"
                   rows={1}
                   onKeyDown={(e) => {
+                    if (e.key === "Escape" && commentPickerAnchor) { e.preventDefault(); setCommentPickerAnchor(null); return; }
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleComment(e as unknown as React.FormEvent); }
                   }}
                 />
                 <button
                   type="submit"
                   disabled={!commentText.trim() || commentMutation.isPending}
-                  className="shrink-0 p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all"
+                  className="shrink-0 p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all mb-0.5"
                 >
                   {commentMutation.isPending
                     ? <Loader2 size={15} className="animate-spin" />
@@ -275,6 +312,20 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
                   }
                 </button>
               </form>
+
+              {/* Comment input emoji picker portal */}
+              {commentPickerAnchor && (
+                <Suspense fallback={null}>
+                  <EmojiPickerPopup
+                    anchor={commentPickerAnchor}
+                    onSelect={(emoji) => {
+                      insertCommentEmoji(emoji);
+                      setCommentPickerAnchor(null);
+                    }}
+                    onClose={() => setCommentPickerAnchor(null)}
+                  />
+                </Suspense>
+              )}
             </div>
           </footer>
         </article>
