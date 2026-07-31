@@ -258,44 +258,6 @@ paths:
         "204":
           description: Deleted
 
-  /letters/{letterId}/tags:
-    patch:
-      operationId: updateLetterTags
-      tags: [letters]
-      summary: Reassign a letter to different postbox channel(s)
-      parameters:
-        - name: letterId
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [tagIds]
-              properties:
-                tagIds:
-                  type: array
-                  items:
-                    type: integer
-      responses:
-        "200":
-          description: Updated tag assignments
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  letterId:
-                    type: integer
-                  tagIds:
-                    type: array
-                    items:
-                      type: integer
-
   /letters/{letterId}/react:
     post:
       operationId: reactToLetter
