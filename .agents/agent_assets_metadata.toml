@@ -6,3 +6,9 @@ id = "j1kJouMNY_Q88oWXUAV-k"
 uri = "file://Kothadi_PRD.md"
 type = "text"
 title = "Kothadi — Product Requirements Document"
+
+[[outputs]]
+id = "3Caw6EFHs8_Vm1ucCzIJo"
+uri = "file://TESTING_AND_COMPONENTS.md"
+type = "text"
+title = "Kothadi — Testing & Component Guide"
