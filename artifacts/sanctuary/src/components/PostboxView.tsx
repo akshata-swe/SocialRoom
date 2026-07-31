@@ -94,8 +94,8 @@ export default function PostboxView({ tag, onReadLetter, onNewLetter }: PostboxV
                     <div className="absolute top-4 right-4 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--color-primary),0.8)]" />
                   )}
 
-                  {/* Delete button — own letters only, revealed on hover */}
-                  {isMyLetter && (
+                  {/* Delete button — admin's own letters only, revealed on hover */}
+                  {me?.isAdmin && isMyLetter && (
                     <button
                       onClick={(e) => handleDeleteClick(e, letter.id)}
                       className={`absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200
