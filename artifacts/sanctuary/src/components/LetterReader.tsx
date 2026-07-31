@@ -3,13 +3,16 @@ import {
   useGetLetter,
   useReactToLetter,
   useDeleteLetter,
+  useUpdateLetterTags,
+  useGetTags,
   useGetMe,
   useGetLetterComments,
   useAddLetterComment,
   getGetLetterQueryKey,
+  getGetLettersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, Loader2, Paperclip, Trash2, Send, Smile } from "lucide-react";
+import { X, Loader2, Paperclip, Trash2, Send, Smile, Mail } from "lucide-react";
 import { format } from "date-fns";
 
 
@@ -24,13 +27,43 @@ interface LetterReaderProps {
 export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
   const { data: letter, isLoading } = useGetLetter(letterId);
   const { data: me } = useGetMe();
+  const { data: allTags } = useGetTags();
   const { data: comments = [], refetch: refetchComments } = useGetLetterComments(letterId);
   const reactMutation = useReactToLetter();
   const deleteMutation = useDeleteLetter();
+  const updateTagsMutation = useUpdateLetterTags();
   const commentMutation = useAddLetterComment();
   const qc = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [commentText, setCommentText] = useState("");
+
+  // Local copy of tagIds — initialised once the letter loads
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  useEffect(() => {
+    if (letter?.tagIds) setSelectedTagIds(letter.tagIds);
+  }, [letter?.tagIds?.join(",")]);
+
+  const postboxTags = (allTags ?? []).filter(t => t.type === "postbox");
+
+  const handleToggleTag = (tagId: number) => {
+    const current = selectedTagIds;
+    // Must keep at least one tag
+    const next = current.includes(tagId)
+      ? current.length > 1 ? current.filter(id => id !== tagId) : current
+      : [...current, tagId];
+    setSelectedTagIds(next);
+    updateTagsMutation.mutate(
+      { letterId, data: { tagIds: next } },
+      {
+        onSuccess: () => {
+          // Invalidate all postbox letter lists so the card moves/appears correctly
+          postboxTags.forEach(t => {
+            qc.invalidateQueries({ queryKey: getGetLettersQueryKey({ tagId: t.id }) });
+          });
+        },
+      }
+    );
+  };
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const [commentPickerAnchor, setCommentPickerAnchor] = useState<DOMRect | null>(null);
 
@@ -184,6 +217,36 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
                     <span>{att.filename}</span>
                   </a>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Deliver to — reassign channel(s) */}
+          {postboxTags.length > 0 && (
+            <div className="pt-8 border-t border-border/50 space-y-3">
+              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Deliver to</h3>
+              <div className="flex flex-wrap gap-3">
+                {postboxTags.map(tag => {
+                  const isSelected = selectedTagIds.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleToggleTag(tag.id)}
+                      disabled={updateTagsMutation.isPending}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all duration-200 disabled:opacity-60
+                        ${isSelected
+                          ? "bg-primary/10 border-primary text-primary shadow-[0_0_10px_rgba(var(--color-primary),0.1)]"
+                          : "bg-card border-border text-muted-foreground hover:border-muted-foreground/50"
+                        }`}
+                    >
+                      <span>{tag.icon || <Mail size={14} />}</span>
+                      <span className="font-medium">{tag.name}</span>
+                      {isSelected && updateTagsMutation.isPending && (
+                        <Loader2 size={12} className="animate-spin" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

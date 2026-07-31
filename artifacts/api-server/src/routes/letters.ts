@@ -216,6 +216,24 @@ router.get("/letters/:letterId", requireAuth, async (req, res) => {
   });
 });
 
+router.patch("/letters/:letterId/tags", requireAuth, async (req, res) => {
+  const letterId = parseInt(req.params.letterId as string);
+  const { tagIds } = req.body;
+
+  if (!Array.isArray(tagIds) || tagIds.length === 0) {
+    res.status(400).json({ error: "tagIds must be a non-empty array" });
+    return;
+  }
+
+  // Replace all tag assignments for this letter
+  await db.delete(letterTagsTable).where(eq(letterTagsTable.letterId, letterId));
+  await db.insert(letterTagsTable).values(
+    tagIds.map((tagId: number) => ({ letterId, tagId }))
+  );
+
+  res.status(200).json({ letterId, tagIds });
+});
+
 router.delete("/letters/:letterId", requireAuth, async (req, res) => {
   const { userId } = req as AuthedRequest;
   if (!(await isAdmin(userId))) {

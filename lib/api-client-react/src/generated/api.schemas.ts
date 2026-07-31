@@ -271,6 +271,15 @@ export type GetLettersParams = {
 tagId: number;
 };
 
+export type UpdateLetterTagsBody = {
+  tagIds: number[];
+};
+
+export type UpdateLetterTags200 = {
+  letterId?: number;
+  tagIds?: number[];
+};
+
 export type GetMessagesParams = {
 tagId: number;
 /**
