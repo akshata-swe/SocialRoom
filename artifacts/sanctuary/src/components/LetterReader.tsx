@@ -188,36 +188,6 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
             </div>
           )}
 
-          {/* Deliver to — reassign channel(s) */}
-          {postboxTags.length > 0 && (
-            <div className="pt-8 border-t border-border/50 space-y-3">
-              <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Deliver to</h3>
-              <div className="flex flex-wrap gap-3">
-                {postboxTags.map(tag => {
-                  const isSelected = selectedTagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      onClick={() => handleToggleTag(tag.id)}
-                      disabled={updateTagsMutation.isPending}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all duration-200 disabled:opacity-60
-                        ${isSelected
-                          ? "bg-primary/10 border-primary text-primary shadow-[0_0_10px_rgba(var(--color-primary),0.1)]"
-                          : "bg-card border-border text-muted-foreground hover:border-muted-foreground/50"
-                        }`}
-                    >
-                      <span>{tag.icon || <Mail size={14} />}</span>
-                      <span className="font-medium">{tag.name}</span>
-                      {isSelected && updateTagsMutation.isPending && (
-                        <Loader2 size={12} className="animate-spin" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Reactions + Comments */}
           <footer className="pt-6 md:pt-12 flex flex-col items-center gap-8 md:gap-10">
             <div className="h-px w-24 bg-border" />
