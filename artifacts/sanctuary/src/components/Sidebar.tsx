@@ -13,7 +13,7 @@ import {
   type Tag,
 } from "@workspace/api-client-react";
 import { useClerk } from "@clerk/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
   LogOut,
   Loader2,
@@ -26,7 +26,19 @@ import {
   GripVertical,
   Lock,
   Unlock,
+  Shield,
+  UserX,
+  ChevronDown,
 } from "lucide-react";
+
+// ─── Admin user type ──────────────────────────────────────────────────────────
+
+interface AdminUser {
+  userId: string;
+  displayName: string;
+  isProfileComplete: boolean;
+  email: string;
+}
 
 // ─── Drag / drop types ────────────────────────────────────────────────────────
 
@@ -617,6 +629,33 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
   const isAdmin = me?.isAdmin ?? false;
   const unreadCounts = unreadData?.counts || {};
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  // ── Admin state ──────────────────────────────────────────────────────────────
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const { data: adminUsers, refetch: refetchAdminUsers } = useQuery<AdminUser[]>({
+    queryKey: ["admin-users"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    },
+    enabled: isAdmin && showAdminPanel,
+    staleTime: 30_000,
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete user");
+      return res.json();
+    },
+    onSuccess: () => {
+      setDeleteConfirmId(null);
+      refetchAdminUsers();
+    },
+  });
   const sorted = [...(spaces ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
 
   // ── Drag state — stored in refs to avoid stale-closure bugs ─────────────────
@@ -898,6 +937,87 @@ export default function Sidebar({ activeTagId, onSelectTag }: SidebarProps) {
           </>
         )}
       </div>
+
+      {/* Admin panel */}
+      {isAdmin && (
+        <div className="px-3 py-2 border-t border-sidebar-border/30 shrink-0">
+          <button
+            onClick={() => setShowAdminPanel((v) => !v)}
+            className="flex items-center gap-2 w-full text-[11px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-1 rounded"
+          >
+            <Shield size={11} />
+            <span className="uppercase tracking-wider font-medium">Admin</span>
+            <ChevronDown
+              size={11}
+              className={`ml-auto transition-transform duration-200 ${showAdminPanel ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {showAdminPanel && (
+            <div className="mt-2 space-y-1">
+              {!adminUsers ? (
+                <div className="flex items-center justify-center py-3">
+                  <Loader2 size={14} className="animate-spin text-muted-foreground/30" />
+                </div>
+              ) : adminUsers.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground/40 px-2 py-1">No users found.</p>
+              ) : (
+                adminUsers.map((user) => (
+                  <div
+                    key={user.userId}
+                    className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-sidebar-accent/30 transition-colors group"
+                  >
+                    {/* Avatar */}
+                    <div className="w-6 h-6 rounded-full bg-sidebar-accent border border-sidebar-border flex items-center justify-center text-[10px] font-serif text-primary shrink-0">
+                      {user.displayName?.charAt(0)?.toUpperCase() || "?"}
+                    </div>
+
+                    {/* Name + email */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-foreground truncate leading-none mb-0.5">
+                        {user.displayName || "—"}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground/50 truncate leading-none">
+                        {user.email}
+                      </div>
+                    </div>
+
+                    {/* Delete — only shown for other users */}
+                    {user.userId !== me?.id && (
+                      deleteConfirmId === user.userId ? (
+                        <div className="flex items-center gap-1 shrink-0 text-[10px]">
+                          <button
+                            onClick={() => deleteUserMutation.mutate(user.userId)}
+                            disabled={deleteUserMutation.isPending}
+                            className="text-destructive hover:text-destructive/80 font-medium transition-colors"
+                          >
+                            {deleteUserMutation.isPending ? "…" : "Delete"}
+                          </button>
+                          <span className="text-muted-foreground/30">/</span>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(user.userId)}
+                          className="p-1 text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 rounded transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                          title={`Delete ${user.displayName}`}
+                        >
+                          <UserX size={12} />
+                        </button>
+                      )
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* User profile */}
       <div className="p-4 border-t border-sidebar-border/50 shrink-0">

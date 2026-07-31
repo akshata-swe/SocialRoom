@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getAuth, createClerkClient } from "@clerk/express";
 import { requireAuth } from "../middlewares/requireAuth";
-import { isAdmin } from "../middlewares/requireAdmin";
+import { isAdminByEmail } from "../middlewares/requireAdmin";
 import { getOrCreateProfile } from "./profile";
 
 const clerkClient = createClerkClient({
@@ -39,7 +39,7 @@ router.get("/me", requireAuth, async (req, res) => {
     displayName: profile.displayName,        // the name shown everywhere in the UI
     isProfileComplete: profile.isProfileComplete,
     avatarUrl: null,
-    isAdmin: isAdmin(userId),
+    isAdmin: isAdminByEmail(email),
   });
 });
 

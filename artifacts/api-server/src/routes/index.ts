@@ -8,6 +8,7 @@ import meRouter from "./me";
 import profileRouter from "./profile";
 import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
+import adminRouter from "./admin";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use(meRouter);
 router.use(profileRouter);
 router.use(uploadRouter);
 router.use(notificationsRouter);
+router.use(adminRouter);
 
 export default router;
