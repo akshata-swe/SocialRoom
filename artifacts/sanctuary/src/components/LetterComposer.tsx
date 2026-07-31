@@ -72,9 +72,8 @@ export default function LetterComposer({ onClose, initialTagId }: LetterComposer
 
   const openPicker = (target: "title" | "content", e: React.MouseEvent) => {
     pickerTarget.current = target;
-    setPickerAnchor(prev =>
-      prev ? null : (e.currentTarget as HTMLElement).getBoundingClientRect()
-    );
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPickerAnchor(prev => (prev ? null : rect));
   };
 
   // ── Publish ───────────────────────────────────────────────────────────────

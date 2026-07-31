@@ -721,9 +721,8 @@ export default function ChatView({ tag }: ChatViewProps) {
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  setInputPickerAnchor((prev) =>
-                    prev ? null : (e.currentTarget as HTMLElement).getBoundingClientRect()
-                  );
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setInputPickerAnchor((prev) => (prev ? null : rect));
                   setPickerAnchor(null);
                 }}
                 className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all mb-0.5 ml-0.5 ${
