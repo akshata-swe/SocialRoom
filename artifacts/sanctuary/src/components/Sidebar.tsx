@@ -446,7 +446,7 @@ function AddTagRow({
       spaceId,
       name: t,
       type,
-      icon: type === "postbox" ? "📬" : "💬",
+      icon: "",
       sortOrder,
     });
     setOpen(false);
@@ -478,7 +478,7 @@ function AddTagRow({
             }}
             className={`flex-1 text-[11px] py-1 rounded transition-colors ${type === t ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground/50 border border-sidebar-border/50 hover:text-muted-foreground"}`}
           >
-            {t === "postbox" ? "📬 Postbox" : "💬 Chat"}
+            {t === "postbox" ? "Postbox" : "Chat"}
           </button>
         ))}
       </div>
