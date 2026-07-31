@@ -41,5 +41,7 @@ export * from './tagType';
 export * from './tagUpdateInput';
 export * from './unreadCounts';
 export * from './unreadCountsCounts';
+export * from './updateLetterTags200';
+export * from './updateLetterTagsBody';
 export * from './uploadResult';
 export * from './userProfile';

@@ -44,6 +44,8 @@ import type {
   TagInput,
   TagUpdateInput,
   UnreadCounts,
+  UpdateLetterTags200,
+  UpdateLetterTagsBody,
   UserProfile
 } from './api.schemas';
 
@@ -1111,6 +1113,78 @@ export const useDeleteLetter = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteLetterMutationOptions(options));
+    }
+
+export const getUpdateLetterTagsUrl = (letterId: number,) => {
+
+
+
+
+  return `/api/letters/${letterId}/tags`
+}
+
+/**
+ * @summary Reassign a letter to different postbox channel(s)
+ */
+export const updateLetterTags = async (letterId: number,
+    updateLetterTagsBody: UpdateLetterTagsBody, options?: RequestInit): Promise<UpdateLetterTags200> => {
+
+  return customFetch<UpdateLetterTags200>(getUpdateLetterTagsUrl(letterId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateLetterTagsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateLetterTagsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLetterTags>>, TError,{letterId: number;data: BodyType<UpdateLetterTagsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLetterTags>>, TError,{letterId: number;data: BodyType<UpdateLetterTagsBody>}, TContext> => {
+
+const mutationKey = ['updateLetterTags'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLetterTags>>, {letterId: number;data: BodyType<UpdateLetterTagsBody>}> = (props) => {
+          const {letterId,data} = props ?? {};
+
+          return  updateLetterTags(letterId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLetterTagsMutationResult = NonNullable<Awaited<ReturnType<typeof updateLetterTags>>>
+    export type UpdateLetterTagsMutationBody = BodyType<UpdateLetterTagsBody>
+    export type UpdateLetterTagsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reassign a letter to different postbox channel(s)
+ */
+export const useUpdateLetterTags = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLetterTags>>, TError,{letterId: number;data: BodyType<UpdateLetterTagsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLetterTags>>,
+        TError,
+        {letterId: number;data: BodyType<UpdateLetterTagsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateLetterTagsMutationOptions(options));
     }
 
 export const getReactToLetterUrl = (letterId: number,) => {

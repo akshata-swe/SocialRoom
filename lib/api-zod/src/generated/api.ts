@@ -301,6 +301,23 @@ export const DeleteLetterResponse = zod.void()
 
 
 /**
+ * @summary Reassign a letter to different postbox channel(s)
+ */
+export const UpdateLetterTagsParams = zod.object({
+  "letterId": zod.coerce.number()
+})
+
+export const UpdateLetterTagsBody = zod.object({
+  "tagIds": zod.array(zod.number())
+})
+
+export const UpdateLetterTagsResponse = zod.object({
+  "letterId": zod.number().optional(),
+  "tagIds": zod.array(zod.number()).optional()
+})
+
+
+/**
  * @summary Add or remove an emoji reaction to a letter
  */
 export const ReactToLetterParams = zod.object({
