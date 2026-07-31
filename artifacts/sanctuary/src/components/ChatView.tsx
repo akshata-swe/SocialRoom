@@ -193,6 +193,27 @@ export default function ChatView({ tag }: ChatViewProps) {
     }
   };
 
+  // Input-bar emoji picker (inserts emoji at cursor)
+  const [inputPickerAnchor, setInputPickerAnchor] = useState<DOMRect | null>(null);
+
+  const insertEmojiAtCursor = (emoji: string) => {
+    const el = textareaRef.current;
+    if (!el) { setInput((prev) => prev + emoji); return; }
+    const start = el.selectionStart ?? input.length;
+    const end   = el.selectionEnd   ?? input.length;
+    const next  = input.slice(0, start) + emoji + input.slice(end);
+    setInput(next);
+    // Restore cursor after React re-render
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+      // Sync auto-height
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+    });
+  };
+
   // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -636,13 +657,27 @@ export default function ChatView({ tag }: ChatViewProps) {
         )}
       </div>
 
-      {/* Emoji picker portal */}
+      {/* Reaction emoji picker portal */}
       {pickerAnchor && (
         <Suspense fallback={null}>
           <EmojiPickerPopup
             anchor={pickerAnchor.rect}
             onSelect={(emoji) => handleReact(pickerAnchor.msgId, emoji)}
             onClose={() => setPickerAnchor(null)}
+          />
+        </Suspense>
+      )}
+
+      {/* Input-bar emoji picker portal */}
+      {inputPickerAnchor && (
+        <Suspense fallback={null}>
+          <EmojiPickerPopup
+            anchor={inputPickerAnchor}
+            onSelect={(emoji) => {
+              insertEmojiAtCursor(emoji);
+              setInputPickerAnchor(null);
+            }}
+            onClose={() => setInputPickerAnchor(null)}
           />
         </Suspense>
       )}
@@ -679,8 +714,28 @@ export default function ChatView({ tag }: ChatViewProps) {
 
             <form
               onSubmit={handleSend}
-              className="relative max-w-3xl mx-auto flex items-end gap-3 bg-card border border-border rounded-3xl p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+              className="relative max-w-3xl mx-auto flex items-end gap-1 bg-card border border-border rounded-3xl px-2 py-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
             >
+              {/* Emoji picker trigger — input bar */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setInputPickerAnchor((prev) =>
+                    prev ? null : (e.currentTarget as HTMLElement).getBoundingClientRect()
+                  );
+                  setPickerAnchor(null);
+                }}
+                className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-all mb-0.5 ml-0.5 ${
+                  inputPickerAnchor
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+                }`}
+                title="Emoji"
+              >
+                <Smile size={18} />
+              </button>
+
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -690,6 +745,7 @@ export default function ChatView({ tag }: ChatViewProps) {
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === "Escape" && replyingTo) { e.preventDefault(); cancelReply(); return; }
+                  if (e.key === "Escape" && inputPickerAnchor) { e.preventDefault(); setInputPickerAnchor(null); return; }
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
                 }}
               />
