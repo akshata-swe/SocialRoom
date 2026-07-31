@@ -20,12 +20,15 @@ export default function Home() {
 
   const markSeenMutation = useMarkNotificationsSeen();
 
+  // Sum every signal type that means "something new is waiting"
   const totalNew = isSignedIn
-    ? (notifications?.newMessageReactions ?? 0) +
+    ? (notifications?.newMessages ?? 0) +
+      (notifications?.newLetters ?? 0) +
+      (notifications?.newMessageReactions ?? 0) +
       (notifications?.newLetterComments ?? 0)
     : 0;
 
-  // Auto-redirect signed-in users with no new activity straight to the workspace
+  // Auto-redirect when there is nothing new to announce
   useEffect(() => {
     if (!isSignedIn || !notifLoaded) return;
     if (totalNew === 0) {
@@ -34,7 +37,7 @@ export default function Home() {
     }
   }, [isSignedIn, notifLoaded, totalNew, setLocation]);
 
-  // Close auth overlay on sign-in success (Clerk updates isSignedIn)
+  // Close auth overlay once Clerk confirms sign-in
   useEffect(() => {
     if (isSignedIn && authView) setAuthView(null);
   }, [isSignedIn, authView]);
@@ -50,18 +53,28 @@ export default function Home() {
 
   const buildNotifText = () => {
     const parts: string[] = [];
-    if ((notifications?.newMessageReactions ?? 0) > 0) {
-      const n = notifications!.newMessageReactions;
-      parts.push(`${n} new reaction${n === 1 ? "" : "s"} on your messages`);
+
+    const msgs = notifications?.newMessages ?? 0;
+    if (msgs > 0) parts.push(`${msgs} new message${msgs === 1 ? "" : "s"}`);
+
+    const letters = notifications?.newLetters ?? 0;
+    if (letters > 0) parts.push(`${letters} new letter${letters === 1 ? "" : "s"}`);
+
+    const msgReacts = notifications?.newMessageReactions ?? 0;
+    if (msgReacts > 0)
+      parts.push(`${msgReacts} new reaction${msgReacts === 1 ? "" : "s"} on your messages`);
+
+    const notes = notifications?.newLetterComments ?? 0;
+    if (notes > 0)
+      parts.push(`${notes} new note${notes === 1 ? "" : "s"} on your letters`);
+
+    // Letter reactions have no timestamp so only show them if nothing else fired
+    if (parts.length === 0) {
+      const lr = notifications?.totalLetterReactions ?? 0;
+      if (lr > 0)
+        parts.push(`${lr} emoji reaction${lr === 1 ? "" : "s"} on your letters`);
     }
-    if ((notifications?.newLetterComments ?? 0) > 0) {
-      const n = notifications!.newLetterComments;
-      parts.push(`${n} new note${n === 1 ? "" : "s"} on your letters`);
-    }
-    if ((notifications?.totalLetterReactions ?? 0) > 0 && parts.length === 0) {
-      const n = notifications!.totalLetterReactions;
-      parts.push(`${n} emoji reaction${n === 1 ? "" : "s"} on your letters`);
-    }
+
     return parts.join(" · ");
   };
 
