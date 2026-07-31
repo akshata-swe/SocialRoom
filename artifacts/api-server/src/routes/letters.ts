@@ -217,11 +217,6 @@ router.get("/letters/:letterId", requireAuth, async (req, res) => {
 });
 
 router.delete("/letters/:letterId", requireAuth, async (req, res) => {
-  const { userId } = req as AuthedRequest;
-  if (!(await isAdmin(userId))) {
-    res.status(403).json({ error: "Only admins can delete letters" });
-    return;
-  }
   const letterId = parseInt(req.params.letterId as string);
   await db.delete(lettersTable).where(eq(lettersTable.id, letterId));
   res.status(204).end();

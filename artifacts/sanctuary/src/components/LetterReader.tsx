@@ -106,8 +106,8 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
           <X size={20} className="stroke-[1.5] hidden md:block" />
         </button>
 
-        {/* Delete — admin's own letters only */}
-        {me?.isAdmin && letter.authorId === me?.id && (
+        {/* Delete — own letters only */}
+        {letter.authorId === me?.id && (
           <button
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
