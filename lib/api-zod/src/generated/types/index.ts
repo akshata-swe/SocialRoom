@@ -23,6 +23,7 @@ export * from './letterSummary';
 export * from './message';
 export * from './messageInput';
 export * from './messageReactions';
+export * from './messageReplyPreview';
 export * from './messageUpdateInput';
 export * from './notificationSummary';
 export * from './profileRecord';

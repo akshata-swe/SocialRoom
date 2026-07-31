@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MessageInput {
-  tagId: number;
-  /** @minLength 1 */
+/**
+ * Snapshot of the parent message embedded in a quote-reply
+ */
+export interface MessageReplyPreview {
+  id: number;
+  senderId: string;
+  senderDisplayName: string;
   content: string;
-  /** ID of the message being quoted/replied to */
-  replyToId?: number | null;
 }

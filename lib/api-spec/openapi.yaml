@@ -850,6 +850,24 @@ components:
       required:
         - emoji
 
+    MessageReplyPreview:
+      type: object
+      description: Snapshot of the parent message embedded in a quote-reply
+      properties:
+        id:
+          type: integer
+        senderId:
+          type: string
+        senderDisplayName:
+          type: string
+        content:
+          type: string
+      required:
+        - id
+        - senderId
+        - senderDisplayName
+        - content
+
     Message:
       type: object
       properties:
@@ -882,6 +900,10 @@ components:
             items:
               type: string
           description: Map of emoji to list of user IDs who reacted
+        replyTo:
+          $ref: "#/components/schemas/MessageReplyPreview"
+          description: Snapshot of the parent message when this is a quote-reply. Null if not a reply.
+          nullable: true
       required:
         - id
         - tagId
@@ -900,6 +922,10 @@ components:
         content:
           type: string
           minLength: 1
+        replyToId:
+          type: integer
+          description: ID of the message being quoted/replied to
+          nullable: true
       required:
         - tagId
         - content
@@ -961,6 +987,12 @@ components:
     NotificationSummary:
       type: object
       properties:
+        newMessages:
+          type: integer
+          description: Count of new chat messages from the partner since last seen
+        newLetters:
+          type: integer
+          description: Count of new letters from the partner since last seen
         newMessageReactions:
           type: integer
           description: Count of new emoji reactions on your messages since last seen
@@ -975,6 +1007,8 @@ components:
           format: date-time
           description: The timestamp used as the "since" cursor
       required:
+        - newMessages
+        - newLetters
         - newMessageReactions
         - newLetterComments
         - totalLetterReactions

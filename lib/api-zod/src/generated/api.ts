@@ -349,7 +349,13 @@ export const GetMessagesResponseItem = zod.object({
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
   "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
-  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted'),
+  "replyTo": zod.object({
+  "id": zod.number(),
+  "senderId": zod.string(),
+  "senderDisplayName": zod.string(),
+  "content": zod.string()
+}).nullish().describe('Snapshot of the parent message when this is a quote-reply. Null if not a reply.')
 })
 export const GetMessagesResponse = zod.array(GetMessagesResponseItem)
 
@@ -362,7 +368,8 @@ export const GetMessagesResponse = zod.array(GetMessagesResponseItem)
 
 export const SendMessageBody = zod.object({
   "tagId": zod.number(),
-  "content": zod.string().min(1)
+  "content": zod.string().min(1),
+  "replyToId": zod.number().nullish().describe('ID of the message being quoted\/replied to')
 })
 
 export const SendMessageResponse = zod.object({
@@ -374,7 +381,13 @@ export const SendMessageResponse = zod.object({
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
   "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
-  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted'),
+  "replyTo": zod.object({
+  "id": zod.number(),
+  "senderId": zod.string(),
+  "senderDisplayName": zod.string(),
+  "content": zod.string()
+}).nullish().describe('Snapshot of the parent message when this is a quote-reply. Null if not a reply.')
 })
 
 
@@ -411,7 +424,13 @@ export const UpdateMessageResponse = zod.object({
   "content": zod.string(),
   "createdAt": zod.coerce.date().describe('Server-authoritative UTC timestamp'),
   "seenByPartner": zod.boolean().describe('True once the other user has loaded messages up to and including this one. Once true, the sender can no longer delete it.'),
-  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted')
+  "reactions": zod.record(zod.string(), zod.array(zod.string())).describe('Map of emoji to list of user IDs who reacted'),
+  "replyTo": zod.object({
+  "id": zod.number(),
+  "senderId": zod.string(),
+  "senderDisplayName": zod.string(),
+  "content": zod.string()
+}).nullish().describe('Snapshot of the parent message when this is a quote-reply. Null if not a reply.')
 })
 
 
@@ -487,6 +506,8 @@ export const AddLetterCommentResponse = zod.object({
  * @summary Get counts of new activity on your content since last seen
  */
 export const GetNotificationsResponse = zod.object({
+  "newMessages": zod.number().describe('Count of new chat messages from the partner since last seen'),
+  "newLetters": zod.number().describe('Count of new letters from the partner since last seen'),
   "newMessageReactions": zod.number().describe('Count of new emoji reactions on your messages since last seen'),
   "newLetterComments": zod.number().describe('Count of new comments on your letters since last seen'),
   "totalLetterReactions": zod.number().describe('Total emoji reactions on your letters from the partner (all time)'),

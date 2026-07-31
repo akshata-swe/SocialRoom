@@ -20,6 +20,8 @@ export const messagesTable = pgTable("messages", {
   senderLoginName: text("sender_login_name"),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** ID of the message being replied to (quote-reply). Null if not a reply. */
+  replyToId: integer("reply_to_id"),
   /** View-once photo: URL stored until viewed/expired, then cleared. */
   viewOnceUrl: text("view_once_url"),
   /** When the view-once photo expires (24 h after send). */

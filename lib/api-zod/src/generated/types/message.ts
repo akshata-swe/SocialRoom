@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MessageReactions } from './messageReactions';
+import type { MessageReplyPreview } from './messageReplyPreview';
 
 export interface Message {
   id: number;
@@ -26,4 +27,6 @@ export interface Message {
   seenByPartner: boolean;
   /** Map of emoji to list of user IDs who reacted */
   reactions: MessageReactions;
+  /** Snapshot of the parent message when this is a quote-reply. Null if not a reply. */
+  replyTo?: MessageReplyPreview | null;
 }

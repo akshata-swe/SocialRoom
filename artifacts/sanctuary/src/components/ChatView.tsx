@@ -11,7 +11,9 @@ import {
 } from "@workspace/api-client-react";
 import type { Tag, Message } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile } from "lucide-react";
+import {
+  Loader2, Send, Pencil, Trash2, Check, X, Lock, Eraser, Smile, Reply,
+} from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
 
 const EmojiPickerPopup = lazy(() => import("./EmojiPickerPopup"));
@@ -32,6 +34,10 @@ function formatTimestamp(iso: string): string {
   if (isToday(date)) return timeStr;
   if (isYesterday(date)) return `Yesterday at ${timeStr}`;
   return format(date, "MMM d") + ` at ${timeStr}`;
+}
+
+function truncate(text: string, maxLen = 90): string {
+  return text.length > maxLen ? text.slice(0, maxLen).trimEnd() + "…" : text;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,6 +92,40 @@ function useChatStream(
 }
 
 // ---------------------------------------------------------------------------
+// Quoted bubble component
+// ---------------------------------------------------------------------------
+
+interface QuotedBubbleProps {
+  replyTo: NonNullable<Message["replyTo"]>;
+  isMe: boolean;
+  onClick: () => void;
+}
+
+function QuotedBubble({ replyTo, isMe, onClick }: QuotedBubbleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        w-full text-left mb-1 px-3 py-2 rounded-xl border-l-2 transition-colors
+        ${isMe
+          ? "bg-primary-foreground/10 border-primary-foreground/40 text-primary-foreground/80 hover:bg-primary-foreground/20"
+          : "bg-muted/60 border-primary/40 text-foreground/70 hover:bg-muted"
+        }
+      `}
+      title="Jump to original message"
+    >
+      <div className={`text-[11px] font-medium mb-0.5 ${isMe ? "text-primary-foreground/60" : "text-primary/70"}`}>
+        ↩ {replyTo.senderDisplayName}
+      </div>
+      <div className="text-[12px] leading-snug line-clamp-2">
+        {truncate(replyTo.content)}
+      </div>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ChatView
 // ---------------------------------------------------------------------------
 
@@ -112,6 +152,24 @@ export default function ChatView({ tag }: ChatViewProps) {
   const [input, setInput]         = useState("");
   const textareaRef               = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef            = useRef<HTMLDivElement>(null);
+  const scrollContainerRef        = useRef<HTMLDivElement>(null);
+
+  // Per-message DOM refs for scroll-to-highlight
+  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const setMessageRef = useCallback((id: number, el: HTMLDivElement | null) => {
+    if (el) messageRefs.current.set(id, el);
+    else messageRefs.current.delete(id);
+  }, []);
+
+  // Highlighted message ID (flash animation)
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+
+  // Reply state
+  const [replyingTo, setReplyingTo] = useState<{
+    id: number;
+    senderDisplayName: string;
+    content: string;
+  } | null>(null);
 
   // Edit state
   const [editingId, setEditingId]     = useState<number | null>(null);
@@ -148,6 +206,16 @@ export default function ChatView({ tag }: ChatViewProps) {
     }
   }, [editingId]);
 
+  // ── Scroll-to-highlight ───────────────────────────────────────────────────
+
+  const scrollToMessage = useCallback((id: number) => {
+    const el = messageRefs.current.get(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedId(id);
+    setTimeout(() => setHighlightedId(null), 1500);
+  }, []);
+
   // ── SSE handlers ──────────────────────────────────────────────────────────
 
   const handleNew = useCallback(
@@ -182,7 +250,6 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  // Partner opened the chat and their cursor advanced — mark matching messages as seen
   const handleReadSSE = useCallback(
     ({ upToId }: { upToId: number }) => {
       qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
@@ -195,7 +262,6 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  // Admin cleared the chat — wipe all messages from the local cache
   const handleClearSSE = useCallback(
     () => {
       qc.setQueryData<Message[]>(messagesQueryKey, () => []);
@@ -204,7 +270,6 @@ export default function ChatView({ tag }: ChatViewProps) {
     [tag.id],
   );
 
-  // Someone reacted — update reactions on that message in the cache
   const handleReactionSSE = useCallback(
     ({ messageId, reactions }: { messageId: number; reactions: Record<string, string[]> }) => {
       qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
@@ -239,6 +304,20 @@ export default function ChatView({ tag }: ChatViewProps) {
     );
   };
 
+  // ── Reply ─────────────────────────────────────────────────────────────────
+
+  const handleReply = (msg: Message) => {
+    setEditingId(null);
+    setReplyingTo({
+      id: msg.id,
+      senderDisplayName: msg.senderDisplayName,
+      content: msg.content,
+    });
+    textareaRef.current?.focus();
+  };
+
+  const cancelReply = () => setReplyingTo(null);
+
   // ── Send ──────────────────────────────────────────────────────────────────
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -252,16 +331,25 @@ export default function ChatView({ tag }: ChatViewProps) {
     e.preventDefault();
     const text = input.trim();
     if (!text || !me) return;
+    const replyToId = replyingTo?.id;
+    const replySnapshot = replyingTo
+      ? { id: replyingTo.id, senderDisplayName: replyingTo.senderDisplayName, content: replyingTo.content }
+      : undefined;
     sendMutation.mutate(
-      { data: { tagId: tag.id, content: text } },
+      { data: { tagId: tag.id, content: text, replyToId } },
       {
         onSuccess: (newMsg) => {
           setInput("");
+          setReplyingTo(null);
           if (textareaRef.current) textareaRef.current.style.height = "auto";
           qc.setQueryData<Message[]>(messagesQueryKey, (prev) => {
             if (!prev) return [newMsg];
             if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
+            // Ensure the replyTo preview is reflected in the local cache immediately
+            const withReply = replySnapshot
+              ? { ...newMsg, replyTo: { ...replySnapshot, senderId: newMsg.senderId } }
+              : newMsg;
+            return [...prev, withReply];
           });
         },
       },
@@ -272,6 +360,7 @@ export default function ChatView({ tag }: ChatViewProps) {
 
   const startEdit = (msg: Message) => {
     setConfirmDeleteId(null);
+    setReplyingTo(null);
     setEditingId(msg.id);
     setEditContent(msg.content);
   };
@@ -304,7 +393,6 @@ export default function ChatView({ tag }: ChatViewProps) {
       setConfirmDeleteId(messageId);
       return;
     }
-    // Confirmed — optimistic remove then fire
     qc.setQueryData<Message[]>(messagesQueryKey, (prev) =>
       prev?.filter((m) => m.id !== messageId) ?? prev,
     );
@@ -345,7 +433,7 @@ export default function ChatView({ tag }: ChatViewProps) {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
         {isLoading && !messages ? (
           <div className="flex justify-center items-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -364,11 +452,18 @@ export default function ChatView({ tag }: ChatViewProps) {
                 messages[idx + 1].senderId !== msg.senderId;
               const isEditing         = editingId === msg.id;
               const isConfirmDelete   = confirmDeleteId === msg.id;
+              const isHighlighted     = highlightedId === msg.id;
 
               return (
                 <div
                   key={msg.id}
-                  className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-0.5"} ${isMe ? "self-end" : "self-start"} w-full`}
+                  ref={(el) => setMessageRef(msg.id, el)}
+                  className={`
+                    flex flex-col w-full transition-all duration-300
+                    ${isMe ? "items-end" : "items-start"}
+                    ${showHeader ? "mt-4" : "mt-0.5"}
+                    ${isHighlighted ? "rounded-2xl ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""}
+                  `}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Sender name + timestamp */}
@@ -420,61 +515,79 @@ export default function ChatView({ tag }: ChatViewProps) {
                       </div>
                     ) : (
                       <div className={`
-                        px-5 py-3 text-[15px] leading-relaxed shadow-sm font-light
+                        px-4 pt-3 pb-3 text-[15px] leading-relaxed shadow-sm font-light min-w-0
                         ${isMe
                           ? `bg-primary text-primary-foreground ${isLastInGroup ? "rounded-2xl rounded-tr-sm" : "rounded-2xl"}`
                           : `bg-card border border-border/60 text-foreground ${isLastInGroup ? "rounded-2xl rounded-tl-sm" : "rounded-2xl"}`
                         }
                       `}>
-                        {msg.content}
+                        {/* Quote preview inside bubble */}
+                        {msg.replyTo && (
+                          <QuotedBubble
+                            replyTo={msg.replyTo}
+                            isMe={isMe}
+                            onClick={() => scrollToMessage(msg.replyTo!.id)}
+                          />
+                        )}
+                        <span>{msg.content}</span>
                       </div>
                     )}
 
-                    {/* Action buttons — only for own messages, always visible but subtle */}
-                    {isMe && !isEditing && (
-                      <div className="flex items-center gap-0.5 shrink-0 pb-0.5">
-                        {/* Edit */}
+                    {/* Action buttons */}
+                    {!isEditing && (
+                      <div className={`flex items-center gap-0.5 shrink-0 pb-0.5 ${isMe ? "" : "flex-row-reverse"}`}>
+                        {/* Reply — available on all messages */}
                         <button
-                          onClick={() => startEdit(msg)}
-                          className="p-1.5 rounded-full text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
-                          title="Edit"
+                          onClick={() => handleReply(msg)}
+                          className="p-1.5 rounded-full text-muted-foreground/30 hover:text-primary hover:bg-primary/10 transition-all"
+                          title="Reply"
                         >
-                          <Pencil size={13} strokeWidth={1.75} />
+                          <Reply size={13} strokeWidth={1.75} />
                         </button>
 
-                        {/* Delete — hidden once partner has seen the message */}
-                        {!msg.seenByPartner ? (
-                          <button
-                            onClick={() => handleDelete(msg.id)}
-                            className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
-                              isConfirmDelete
-                                ? "bg-destructive text-destructive-foreground"
-                                : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
-                            }`}
-                            title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
-                          >
-                            <Trash2 size={13} strokeWidth={1.75} />
-                            {isConfirmDelete && <span>Delete?</span>}
-                          </button>
-                        ) : (
-                          /* Subtle "seen" dot so the sender knows why delete is gone */
-                          <span
-                            className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-1 self-center"
-                            title="Seen — cannot be deleted"
-                          />
+                        {/* Edit + Delete — own messages only */}
+                        {isMe && (
+                          <>
+                            <button
+                              onClick={() => startEdit(msg)}
+                              className="p-1.5 rounded-full text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
+                              title="Edit"
+                            >
+                              <Pencil size={13} strokeWidth={1.75} />
+                            </button>
+
+                            {!msg.seenByPartner ? (
+                              <button
+                                onClick={() => handleDelete(msg.id)}
+                                className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                  isConfirmDelete
+                                    ? "bg-destructive text-destructive-foreground"
+                                    : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
+                                }`}
+                                title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
+                              >
+                                <Trash2 size={13} strokeWidth={1.75} />
+                                {isConfirmDelete && <span>Delete?</span>}
+                              </button>
+                            ) : (
+                              <span
+                                className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-1 self-center"
+                                title="Seen — cannot be deleted"
+                              />
+                            )}
+                          </>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Reactions row — shown below the bubble */}
+                  {/* Reactions row */}
                   {(() => {
                     const reactions = (msg.reactions ?? {}) as Record<string, string[]>;
                     const hasReactions = Object.keys(reactions).some(e => (reactions[e]?.length ?? 0) > 0);
                     const myUserId = me?.id ?? "";
                     return (
                       <div className={`flex flex-col gap-0.5 max-w-[82%] ${isMe ? "self-end items-end" : "self-start items-start"}`}>
-                        {/* Reaction pills */}
                         {hasReactions && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {Object.entries(reactions).map(([emoji, users]) =>
@@ -543,6 +656,27 @@ export default function ChatView({ tag }: ChatViewProps) {
           </div>
         ) : (
           <>
+            {/* Reply-to preview bar */}
+            {replyingTo && (
+              <div className="max-w-3xl mx-auto mb-2 flex items-start gap-2 px-4 py-2.5 bg-card border border-primary/20 rounded-2xl animate-in slide-in-from-bottom-1 duration-150">
+                <div className="flex-1 min-w-0 border-l-2 border-primary/50 pl-2.5">
+                  <div className="text-[11px] font-medium text-primary/70 mb-0.5">
+                    Replying to {replyingTo.senderDisplayName}
+                  </div>
+                  <div className="text-[12px] text-muted-foreground truncate">
+                    {truncate(replyingTo.content, 80)}
+                  </div>
+                </div>
+                <button
+                  onClick={cancelReply}
+                  className="p-1 mt-0.5 text-muted-foreground/40 hover:text-foreground rounded-full hover:bg-muted transition-colors shrink-0"
+                  title="Cancel reply"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
             <form
               onSubmit={handleSend}
               className="relative max-w-3xl mx-auto flex items-end gap-3 bg-card border border-border rounded-3xl p-2 shadow-sm focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
@@ -555,6 +689,7 @@ export default function ChatView({ tag }: ChatViewProps) {
                 className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none resize-none focus:outline-none focus:ring-0 px-2 py-2.5 text-foreground placeholder:text-muted-foreground/50 font-light custom-scrollbar"
                 rows={1}
                 onKeyDown={(e) => {
+                  if (e.key === "Escape" && replyingTo) { e.preventDefault(); cancelReply(); return; }
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
                 }}
               />
@@ -572,7 +707,7 @@ export default function ChatView({ tag }: ChatViewProps) {
             </form>
             <div className="max-w-3xl mx-auto flex items-center justify-between mt-2">
               <p className="text-[10px] text-muted-foreground/30 font-light">
-                Enter to send · Shift+Enter for new line
+                Enter to send · Shift+Enter for new line{replyingTo ? " · Esc to cancel reply" : ""}
               </p>
               {isAdminUser && (
                 confirmClear ? (

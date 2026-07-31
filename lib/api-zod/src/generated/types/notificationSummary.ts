@@ -7,6 +7,10 @@
  */
 
 export interface NotificationSummary {
+  /** Count of new chat messages from the partner since last seen */
+  newMessages: number;
+  /** Count of new letters from the partner since last seen */
+  newLetters: number;
   /** Count of new emoji reactions on your messages since last seen */
   newMessageReactions: number;
   /** Count of new comments on your letters since last seen */

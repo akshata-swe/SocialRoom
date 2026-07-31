@@ -55,11 +55,19 @@ async function fetchReactionsForMessage(
   return result;
 }
 
+type ReplyPreview = {
+  id: number;
+  senderId: string;
+  senderDisplayName: string;
+  content: string;
+} | null;
+
 function serializeMessage(
   m: typeof messagesTable.$inferSelect,
   partnerLastReadId: number,
   reactions: Record<string, string[]> = {},
   requesterId?: string,
+  replyTo: ReplyPreview = null,
 ) {
   const now = new Date();
   let viewOnce: {
@@ -92,6 +100,7 @@ function serializeMessage(
     seenByPartner: partnerLastReadId >= m.id,
     reactions,
     viewOnce,
+    replyTo,
   };
 }
 
@@ -119,6 +128,34 @@ async function getPartnerLastReadId(tagId: number, userId: string): Promise<numb
     )
     .limit(1);
   return rows[0]?.lastReadMessageId ?? 0;
+}
+
+/** Batch-fetch parent messages by IDs and return a map of id → ReplyPreview */
+async function fetchReplyPreviews(
+  parentIds: number[],
+): Promise<Map<number, ReplyPreview>> {
+  const map = new Map<number, ReplyPreview>();
+  if (parentIds.length === 0) return map;
+
+  const parents = await db
+    .select({
+      id: messagesTable.id,
+      authorId: messagesTable.authorId,
+      authorName: messagesTable.authorName,
+      content: messagesTable.content,
+    })
+    .from(messagesTable)
+    .where(inArray(messagesTable.id, parentIds));
+
+  for (const p of parents) {
+    map.set(p.id, {
+      id: p.id,
+      senderId: p.authorId,
+      senderDisplayName: p.authorName,
+      content: p.content,
+    });
+  }
+  return map;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,15 +198,27 @@ router.get("/messages", requireAuth, async (req, res) => {
     broadcast(tagId, { type: "read", payload: { upToId: latestId } });
   }
 
-  const [partnerLastReadId, reactionsMap] = await Promise.all([
+  // Collect parent IDs for quote-replies
+  const parentIds = [...new Set(messages.map((m) => m.replyToId).filter((id): id is number => id !== null && id !== undefined))];
+
+  const [partnerLastReadId, reactionsMap, replyPreviewMap] = await Promise.all([
     getPartnerLastReadId(tagId, userId),
     fetchReactionsMap(messages.map((m) => m.id)),
+    fetchReplyPreviews(parentIds),
   ]);
 
   res.json(
     messages
       .reverse()
-      .map((m) => serializeMessage(m, partnerLastReadId, reactionsMap.get(m.id) ?? {}, userId)),
+      .map((m) =>
+        serializeMessage(
+          m,
+          partnerLastReadId,
+          reactionsMap.get(m.id) ?? {},
+          userId,
+          m.replyToId ? (replyPreviewMap.get(m.replyToId) ?? null) : null,
+        ),
+      ),
   );
 });
 
@@ -214,7 +263,7 @@ router.get("/messages/stream", requireAuth, (req, res) => {
 
 router.post("/messages", requireAuth, async (req, res) => {
   const { userId } = req as AuthedRequest;
-  const { tagId, content, viewOnceUrl } = req.body;
+  const { tagId, content, viewOnceUrl, replyToId } = req.body;
 
   // Require either text content or a view-once photo URL
   if (!tagId || (!content?.trim() && !viewOnceUrl)) {
@@ -235,6 +284,33 @@ router.post("/messages", requireAuth, async (req, res) => {
     ? new Date(Date.now() + 24 * 60 * 60 * 1000)
     : null;
 
+  // Validate replyToId if provided
+  let resolvedReplyToId: number | null = null;
+  let replyPreview: ReplyPreview = null;
+  if (replyToId) {
+    const [parent] = await db
+      .select({
+        id: messagesTable.id,
+        authorId: messagesTable.authorId,
+        authorName: messagesTable.authorName,
+        content: messagesTable.content,
+        tagId: messagesTable.tagId,
+      })
+      .from(messagesTable)
+      .where(and(eq(messagesTable.id, replyToId), eq(messagesTable.tagId, tagId)))
+      .limit(1);
+
+    if (parent) {
+      resolvedReplyToId = parent.id;
+      replyPreview = {
+        id: parent.id,
+        senderId: parent.authorId,
+        senderDisplayName: parent.authorName,
+        content: parent.content,
+      };
+    }
+  }
+
   const [message] = await db
     .insert(messagesTable)
     .values({
@@ -244,10 +320,11 @@ router.post("/messages", requireAuth, async (req, res) => {
       content: content?.trim() || "",
       viewOnceUrl: viewOnceUrl ?? null,
       viewOnceExpiresAt,
+      replyToId: resolvedReplyToId,
     })
     .returning();
 
-  const serialized = serializeMessage(message, 0, {}, userId);
+  const serialized = serializeMessage(message, 0, {}, userId, replyPreview);
 
   await db
     .insert(messageReadsTable)
@@ -404,11 +481,7 @@ router.patch("/messages/:messageId", requireAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /messages/:messageId
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// DELETE /messages/clear?tagId=xxx  — admin wipe entire chat history
+// DELETE /messages/clear  — admin wipe entire chat history
 // ---------------------------------------------------------------------------
 
 router.delete("/messages/clear", requireAuth, requireAdmin, async (req, res) => {

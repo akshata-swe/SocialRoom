@@ -175,6 +175,16 @@ export interface ReactionInput {
 }
 
 /**
+ * Snapshot of the parent message embedded in a quote-reply
+ */
+export interface MessageReplyPreview {
+  id: number;
+  senderId: string;
+  senderDisplayName: string;
+  content: string;
+}
+
+/**
  * Map of emoji to list of user IDs who reacted
  */
 export type MessageReactions = {[key: string]: string[]};
@@ -198,12 +208,16 @@ export interface Message {
   seenByPartner: boolean;
   /** Map of emoji to list of user IDs who reacted */
   reactions: MessageReactions;
+  /** Snapshot of the parent message when this is a quote-reply. Null if not a reply. */
+  replyTo?: MessageReplyPreview | null;
 }
 
 export interface MessageInput {
   tagId: number;
   /** @minLength 1 */
   content: string;
+  /** ID of the message being quoted/replied to */
+  replyToId?: number | null;
 }
 
 export interface MessageUpdateInput {
@@ -232,6 +246,10 @@ export interface LetterCommentInput {
 }
 
 export interface NotificationSummary {
+  /** Count of new chat messages from the partner since last seen */
+  newMessages: number;
+  /** Count of new letters from the partner since last seen */
+  newLetters: number;
   /** Count of new emoji reactions on your messages since last seen */
   newMessageReactions: number;
   /** Count of new comments on your letters since last seen */
