@@ -144,29 +144,47 @@ export default function Home() {
             </button>
 
             {authView === "signin" ? (
-              <SignIn
-                routing="virtual"
-                afterSignInUrl={`${basePath}/sanctuary`}
-                signUpUrl={undefined}
-                appearance={{
-                  elements: {
-                    footer: "hidden",
-                    footerAction: "hidden",
-                  },
-                }}
-              />
+              <>
+                <SignIn
+                  routing="virtual"
+                  afterSignInUrl={`${basePath}/sanctuary`}
+                  appearance={{
+                    elements: {
+                      footer: { display: "none" },
+                    },
+                  }}
+                />
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <button
+                    onClick={() => setAuthView("signup")}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Sign up
+                  </button>
+                </p>
+              </>
             ) : (
-              <SignUp
-                routing="virtual"
-                afterSignUpUrl={`${basePath}/sanctuary`}
-                signInUrl={undefined}
-                appearance={{
-                  elements: {
-                    footer: "hidden",
-                    footerAction: "hidden",
-                  },
-                }}
-              />
+              <>
+                <SignUp
+                  routing="virtual"
+                  afterSignUpUrl={`${basePath}/sanctuary`}
+                  appearance={{
+                    elements: {
+                      footer: { display: "none" },
+                    },
+                  }}
+                />
+                <p className="mt-4 text-center text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => setAuthView("signin")}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </>
             )}
           </div>
         </div>
