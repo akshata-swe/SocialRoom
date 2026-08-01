@@ -26,6 +26,7 @@
 - **Spaces & Channels** — a sidebar-driven workspace with drag-and-drop reorderable sections and channels.
 - **Notification system** — a landing page that counts unread messages, unread letters, new reactions, and new comments since the user last visited, and blocks auto-redirect if anything is waiting.
 - **Admin controls** — a single designated admin (by email) can manage users and delete their own letters.
+- **Change channels** — any user can reassign a sent letter to different postbox channels, individually or in bulk via multi-select.
 
 ### Architecture
 
@@ -114,10 +115,11 @@ workspace/
 │   │           ├── Workspace.tsx            # Main layout shell after login
 │   │           ├── Sidebar.tsx              # Navigation: spaces, channels, admin panel
 │   │           ├── ChatView.tsx             # Real-time chat + SSE client + quote-reply
-│   │           ├── PostboxView.tsx          # Letter grid for a given postbox channel
+│   │           ├── PostboxView.tsx          # Letter grid — multi-select, ⋮ menu, Change channels
 │   │           ├── LetterReader.tsx         # Full-screen letter reader + reactions + notes
 │   │           ├── LetterComposer.tsx       # Full-screen letter editor
-│   │           └── EmojiPickerPopup.tsx     # Shared lazy-loaded emoji picker portal
+│   │           ├── EmojiPickerPopup.tsx     # Shared lazy-loaded emoji picker portal
+│           └── ChannelPickerPopup.tsx   # Fixed-position popup: reassign letter channels
 │   │
 │   └── mockup-sandbox/              # Dev-only: isolated component preview server
 │
@@ -265,6 +267,33 @@ PostboxView.tsx  useGetLetters({ tagId })
 ```
 
 When the letter is opened (`LetterReader`), a `POST /api/letters/:id/read` call marks it as read. Reactions are stored as a JSON column `{ "❤️": ["userId1", "userId2"] }` directly on the `letters` row — toggling your own reaction adds/removes your user ID from the array.
+
+**Channel reassignment** — after a letter is sent, either user can reassign it to different postbox channels:
+
+```
+User opens PostboxView → hovers a card → clicks ⋮ → "Change channels"
+  (or selects multiple cards → floating bulk bar → "Change channels")
+         │
+         ▼
+ChannelPickerPopup.tsx  (fixed-position portal)
+         │
+         ├─ Renders all postbox tags as checkboxes
+         │   checked      = ALL selected letters have this tag
+         │   indeterminate = SOME selected letters have this tag
+         │   unchecked    = NO  selected letters have this tag
+         │
+         ▼
+PATCH /api/letters/:id/tags  { tagIds: [id, id, …] }   (one call per letter)
+         │
+         ▼
+letters.ts route
+         │
+         ├─ Deletes existing letter_tags rows for this letter
+         └─ Inserts new letter_tags rows (at least 1 tag always enforced client-side)
+                        │
+                        ▼
+React Query invalidates getGetLettersQueryKey for every postbox tag
+```
 
 ---
 
@@ -434,7 +463,51 @@ SSE subscription (useChatStream hook):
 
 ---
 
-### 4.6 Database Schema Summary
+---
+
+### 4.6 `PostboxView.tsx` + `ChannelPickerPopup.tsx` — Letter Grid & Channel Reassignment
+
+`PostboxView` renders the letter grid for one postbox channel and owns the selection and channel-picker state:
+
+```
+State:
+  selectedIds        → Set<number> — which letter cards are selected
+  menuOpenId         → number | null — which card's ⋮ dropdown is open
+  menuAnchor         → DOMRect of the ⋮ button (positions the dropdown via fixed CSS)
+  confirmDeleteId    → number | null — two-step delete confirmation
+  pickerAnchor       → DOMRect | null — positions ChannelPickerPopup
+  pickerLetterIds    → number[] — which letters the picker will act on (1 or many)
+
+UX modes:
+  Normal             → hover reveals ⋮ button (top-right) and checkmark (top-left)
+  Selection          → selectedIds.size > 0; checkmarks always visible;
+                       floating bulk-action bar slides in from bottom
+  Menu open          → fixed-position dropdown with "Change channels" + optional "Delete"
+
+Three-dot menu opens at the button's DOMRect so it doesn't clip inside the card.
+```
+
+`ChannelPickerPopup` is a self-contained fixed-position portal:
+
+```
+Props:
+  anchor          → DOMRect — positions the popup near the trigger button
+  selectedLetters → { id, tagIds }[] — 1 or more letters to act on
+  onClose         → () => void
+
+Checkbox logic (per tag):
+  allHave         → every selected letter has this tagId  → checked   ✓
+  someHave (not all) → at least one does                   → indeterminate –
+  noneHave        → no selected letter has this tagId     → unchecked  □
+
+On toggle:
+  "add"   (indeterminate or unchecked) → union of existing tagIds + this tagId
+  "remove" (checked)                   → filter this tagId out (guarded: never empties)
+  Fires PATCH /api/letters/:id/tags for each selected letter, then invalidates
+  getGetLettersQueryKey for all postbox tags so every view refreshes.
+```
+
+### 4.7 Database Schema Summary
 
 | Table | Key Columns | Notes |
 |---|---|---|
@@ -452,7 +525,7 @@ SSE subscription (useChatStream hook):
 
 ---
 
-### 4.7 API Endpoints Reference
+### 4.8 API Endpoints Reference
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -479,6 +552,7 @@ SSE subscription (useChatStream hook):
 | `POST` | `/letters` | ✓ | Write a letter |
 | `GET` | `/letters/:id` | ✓ | Read a letter |
 | `DELETE` | `/letters/:id` | ✓ Admin | Delete a letter |
+| `PATCH` | `/letters/:id/tags` | ✓ | Replace a letter's channel assignments |
 | `POST` | `/letters/:id/react` | ✓ | Toggle emoji reaction on a letter |
 | `GET` | `/letters/:id/comments` | ✓ | Fetch comments on a letter |
 | `POST` | `/letters/:id/comments` | ✓ | Post a comment on a letter |
