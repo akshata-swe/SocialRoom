@@ -373,10 +373,50 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
     res.status(400).json({ error: "This message has no view-once photo" });
     return;
   }
+
+  // Shared MIME map — used both for sender preview and the main consume path
+  const MIME_MAP: Record<string, string> = {
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png":  "image/png",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".avif": "image/avif",
+  };
+
+  // ── Sender preview path ─────────────────────────────────────────────────
+  // The sender can tap to re-view their own photo without consuming it.
+  // We serve the raw bytes but do NOT mark viewed, delete the file, or
+  // broadcast an SSE event — the photo is still waiting for the recipient.
   if (message.authorId === userId) {
-    res.status(403).json({ error: "Sender cannot view their own view-once photo" });
+    if (message.viewOnceViewedAt) {
+      res.status(410).json({ error: "This photo has already been viewed" });
+      return;
+    }
+    const previewFilename = path.basename(message.viewOnceUrl);
+    const previewPath = path.join(process.cwd(), "uploads", previewFilename);
+    if (!fs.existsSync(previewPath)) {
+      res.status(410).json({ error: "This photo is no longer available" });
+      return;
+    }
+    let previewBuffer: Buffer;
+    try { previewBuffer = fs.readFileSync(previewPath); }
+    catch { res.status(500).json({ error: "Failed to read photo" }); return; }
+    const previewExt = path.extname(previewFilename).toLowerCase();
+    const previewMime = MIME_MAP[previewExt] ?? "application/octet-stream";
+    res.set({
+      "Content-Type": previewMime,
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Content-Length": String(previewBuffer.length),
+    });
+    res.end(previewBuffer);
     return;
   }
+
   const now = new Date();
 
   // Fast-path checks before touching the filesystem
@@ -432,17 +472,7 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
     return;
   }
 
-  // Infer MIME type from extension
-  const MIME_MAP: Record<string, string> = {
-    ".jpg":  "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png":  "image/png",
-    ".gif":  "image/gif",
-    ".webp": "image/webp",
-    ".heic": "image/heic",
-    ".heif": "image/heif",
-    ".avif": "image/avif",
-  };
+  // Infer MIME type from extension (MIME_MAP declared at top of handler)
   const ext = path.extname(filename).toLowerCase();
   const contentType = MIME_MAP[ext] ?? "application/octet-stream";
 

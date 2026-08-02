@@ -125,7 +125,7 @@ function QuotedBubble({ replyTo, isMe, onClick }: QuotedBubbleProps) {
         ↩ {replyTo.senderDisplayName}
       </div>
       <div className="text-[12px] leading-snug line-clamp-2">
-        {truncate(replyTo.content)}
+        {replyTo.content?.trim() ? truncate(replyTo.content) : "📷 View once photo"}
       </div>
     </button>
   );
@@ -175,6 +175,7 @@ export default function ChatView({ tag }: ChatViewProps) {
     id: number;
     senderDisplayName: string;
     content: string;
+    isViewOnce?: boolean;
   } | null>(null);
 
   // Edit state
@@ -365,6 +366,7 @@ export default function ChatView({ tag }: ChatViewProps) {
       id: msg.id,
       senderDisplayName: msg.senderDisplayName,
       content: msg.content,
+      isViewOnce: !!msg.viewOnce,
     });
     textareaRef.current?.focus();
   };
@@ -662,8 +664,8 @@ export default function ChatView({ tag }: ChatViewProps) {
                       </div>
                     )}
 
-                    {/* Action buttons — hidden for view-once messages */}
-                    {!isEditing && !msg.viewOnce && (
+                    {/* Action buttons — reply + edit available on all messages; delete hidden for view-once */}
+                    {!isEditing && (
                       <div className={`flex items-center gap-0.5 shrink-0 pb-0.5 ${isMe ? "" : "flex-row-reverse"}`}>
                         {/* Reply — available on all messages */}
                         <button
@@ -685,7 +687,8 @@ export default function ChatView({ tag }: ChatViewProps) {
                               <Pencil size={13} strokeWidth={1.75} />
                             </button>
 
-                            {!msg.seenByPartner ? (
+                            {/* Delete hidden for view-once messages */}
+                            {!msg.viewOnce && (!msg.seenByPartner ? (
                               <button
                                 onClick={() => handleDelete(msg.id)}
                                 className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
@@ -703,15 +706,15 @@ export default function ChatView({ tag }: ChatViewProps) {
                                 className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-1 self-center"
                                 title="Seen — cannot be deleted"
                               />
-                            )}
+                            ))}
                           </>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Reactions row — hidden for view-once messages */}
-                  {!msg.viewOnce && (() => {
+                  {/* Reactions row */}
+                  {(() => {
                     const reactions = (msg.reactions ?? {}) as Record<string, string[]>;
                     const hasReactions = Object.keys(reactions).some(e => (reactions[e]?.length ?? 0) > 0);
                     const myUserId = me?.id ?? "";
@@ -807,7 +810,7 @@ export default function ChatView({ tag }: ChatViewProps) {
                     Replying to {replyingTo.senderDisplayName}
                   </div>
                   <div className="text-[12px] text-muted-foreground truncate">
-                    {truncate(replyingTo.content, 80)}
+                    {replyingTo.isViewOnce ? "📷 View once photo" : truncate(replyingTo.content, 80)}
                   </div>
                 </div>
                 <button

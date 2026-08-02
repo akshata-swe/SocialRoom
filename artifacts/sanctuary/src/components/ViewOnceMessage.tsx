@@ -67,7 +67,9 @@ export function ViewOnceMessage({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const viewedAtRef = useRef<string>(new Date().toISOString());
 
-  // Revoke the Object URL and collapse the overlay
+  // Revoke the Object URL and collapse the overlay.
+  // When the sender previews, we go back to "idle" (photo wasn't consumed).
+  // When the recipient views, we go to "done" and fire onViewed.
   const collapseView = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (objUrlRef.current) {
@@ -75,9 +77,13 @@ export function ViewOnceMessage({
       objUrlRef.current = null;
     }
     setObjectUrl(null);
-    setPhase("done");
-    onViewed(viewedAtRef.current);
-  }, [onViewed]);
+    if (viewOnce.isSender) {
+      setPhase("idle");
+    } else {
+      setPhase("done");
+      onViewed(viewedAtRef.current);
+    }
+  }, [onViewed, viewOnce.isSender]);
 
   // Start countdown when viewing begins
   useEffect(() => {
@@ -120,8 +126,7 @@ export function ViewOnceMessage({
   const handleTap = async () => {
     if (
       phase !== "idle" ||
-      viewOnce.status !== "unseen" ||
-      viewOnce.isSender
+      viewOnce.status !== "unseen"
     ) return;
 
     setPhase("loading");
@@ -217,19 +222,30 @@ export function ViewOnceMessage({
       );
     }
 
-    // Unseen — sender locked card
+    // Unseen — sender preview card (can tap to see without consuming)
     if (viewOnce.isSender) {
       return (
-        <div className="flex items-center gap-3 px-4 py-3.5">
-          <Camera size={16} className="text-primary/70 shrink-0" />
+        <button
+          onClick={handleTap}
+          className="flex items-center gap-3 px-4 py-3.5 w-full text-left group"
+        >
+          <div className="relative shrink-0">
+            <Camera
+              size={20}
+              className="text-primary/70 transition-transform group-hover:scale-110"
+            />
+            <Eye
+              size={10}
+              className="text-primary/50 absolute -bottom-0.5 -right-0.5"
+            />
+          </div>
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-xs font-medium text-foreground/80">View once · photo</span>
+            <span className="text-[15px] font-medium text-foreground/80">Tap to preview</span>
             <span className="text-[11px] text-muted-foreground/40 font-light">
-              Waiting to be opened
+              View once · waiting to be opened
             </span>
           </div>
-          <Lock size={11} className="text-muted-foreground/30 shrink-0" />
-        </div>
+        </button>
       );
     }
 
@@ -267,7 +283,7 @@ export function ViewOnceMessage({
   // ── Render ────────────────────────────────────────────────────────────────
 
   const canTap =
-    phase === "idle" && effectiveStatus === "unseen" && !viewOnce.isSender;
+    phase === "idle" && effectiveStatus === "unseen";
 
   return (
     <>
