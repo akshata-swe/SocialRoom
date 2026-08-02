@@ -687,8 +687,23 @@ export default function ChatView({ tag }: ChatViewProps) {
                               <Pencil size={13} strokeWidth={1.75} />
                             </button>
 
-                            {/* Delete hidden for view-once messages */}
-                            {!msg.viewOnce && (!msg.seenByPartner ? (
+                            {/* Delete — shown for regular messages (unseen only) and view-once photos not yet opened */}
+                            {msg.viewOnce ? (
+                              msg.viewOnce.status === "unseen" && (
+                                <button
+                                  onClick={() => handleDelete(msg.id)}
+                                  className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    isConfirmDelete
+                                      ? "bg-destructive text-destructive-foreground"
+                                      : "text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10"
+                                  }`}
+                                  title={isConfirmDelete ? "Tap again to confirm delete" : "Delete"}
+                                >
+                                  <Trash2 size={13} strokeWidth={1.75} />
+                                  {isConfirmDelete && <span>Delete?</span>}
+                                </button>
+                              )
+                            ) : !msg.seenByPartner ? (
                               <button
                                 onClick={() => handleDelete(msg.id)}
                                 className={`flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all ${
@@ -706,7 +721,7 @@ export default function ChatView({ tag }: ChatViewProps) {
                                 className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-1 self-center"
                                 title="Seen — cannot be deleted"
                               />
-                            ))}
+                            )}
                           </>
                         )}
                       </div>
