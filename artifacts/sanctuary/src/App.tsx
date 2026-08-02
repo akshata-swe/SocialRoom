@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
@@ -187,6 +187,21 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+const clerkLocalization = {
+  signIn: {
+    start: {
+      title: "Welcome back to The Room",
+      subtitle: "Enter the quiet room",
+    },
+  },
+  signUp: {
+    start: {
+      title: "Join The Room",
+      subtitle: "A private place for two",
+    },
+  },
+};
+
 /** Shared full-page wrapper for sign-in / sign-up */
 function AuthPageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -225,6 +240,15 @@ function SignUpPage() {
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
+  const routerPush = useCallback(
+    (to: string) => setLocation(stripBase(to)),
+    [setLocation],
+  );
+  const routerReplace = useCallback(
+    (to: string) => setLocation(stripBase(to), { replace: true }),
+    [setLocation],
+  );
+
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
@@ -234,22 +258,9 @@ function ClerkProviderWithRoutes() {
       signUpUrl={`${basePath}/sign-up`}
       afterSignInUrl={`${basePath}/sanctuary`}
       afterSignUpUrl={`${basePath}/sanctuary`}
-      localization={{
-        signIn: {
-          start: {
-            title: "Welcome back to The Room",
-            subtitle: "Enter the quiet room",
-          },
-        },
-        signUp: {
-          start: {
-            title: "Join The Room",
-            subtitle: "A private place for two",
-          },
-        },
-      }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      localization={clerkLocalization}
+      routerPush={routerPush}
+      routerReplace={routerReplace}
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
