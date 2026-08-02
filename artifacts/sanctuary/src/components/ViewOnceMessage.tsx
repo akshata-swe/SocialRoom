@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { Camera, Eye, Lock, Loader2 } from "lucide-react";
+import { Camera, Eye, Loader2, X } from "lucide-react";
 import { format } from "date-fns";
 
 // ---------------------------------------------------------------------------
@@ -310,6 +310,15 @@ export function ViewOnceMessage({
             className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-black/95 animate-in fade-in duration-200"
             onContextMenu={(e) => e.preventDefault()}
           >
+            {/* Close button */}
+            <button
+              onClick={collapseView}
+              className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+
             {/* Image — pointer-events-none prevents long-press save on mobile */}
             <img
               src={objectUrl}

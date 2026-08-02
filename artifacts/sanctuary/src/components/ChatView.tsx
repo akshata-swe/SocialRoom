@@ -679,13 +679,16 @@ export default function ChatView({ tag }: ChatViewProps) {
                         {/* Edit + Delete — own messages only */}
                         {isMe && (
                           <>
-                            <button
-                              onClick={() => startEdit(msg)}
-                              className="p-1.5 rounded-full text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
-                              title="Edit"
-                            >
-                              <Pencil size={13} strokeWidth={1.75} />
-                            </button>
+                            {/* Edit hidden for view-once messages */}
+                            {!msg.viewOnce && (
+                              <button
+                                onClick={() => startEdit(msg)}
+                                className="p-1.5 rounded-full text-muted-foreground/30 hover:text-foreground hover:bg-muted transition-all"
+                                title="Edit"
+                              >
+                                <Pencil size={13} strokeWidth={1.75} />
+                              </button>
+                            )}
 
                             {/* Delete — shown for regular messages (unseen only) and view-once photos not yet opened */}
                             {msg.viewOnce ? (
