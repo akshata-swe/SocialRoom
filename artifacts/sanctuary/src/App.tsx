@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -187,6 +187,41 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+/** Shared full-page wrapper for sign-in / sign-up */
+function AuthPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-background px-4 py-12">
+      {children}
+    </div>
+  );
+}
+
+function SignInPage() {
+  return (
+    <AuthPageShell>
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        afterSignInUrl={`${basePath}/sanctuary`}
+      />
+    </AuthPageShell>
+  );
+}
+
+function SignUpPage() {
+  return (
+    <AuthPageShell>
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        afterSignUpUrl={`${basePath}/sanctuary`}
+      />
+    </AuthPageShell>
+  );
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -220,6 +255,10 @@ function ClerkProviderWithRoutes() {
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
           <Switch>
+            {/* OAuth callbacks land on /sign-in/sso-callback and /sign-up/sso-callback —
+                the /*? wildcard captures those sub-paths so Clerk can complete the flow. */}
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
             <Route path="/sanctuary" component={SanctuaryPortal} />
             <Route path="/" component={HomeRedirect} />
             <Route path="*">
