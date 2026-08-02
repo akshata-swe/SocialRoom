@@ -71,10 +71,10 @@ router.get("/letters", requireAuth, async (req, res) => {
   const summaries = letters.map((letter) => {
     const content = letter.content as Record<string, unknown>;
     const blocks = (content.blocks as Array<{ data?: { text?: string } }>) ?? [];
-    const excerpt =
-      blocks
-        .find((b) => b.data?.text)
-        ?.data?.text?.slice(0, 150) ?? null;
+    const rawText = blocks.find((b) => b.data?.text)?.data?.text ?? null;
+    const excerpt = rawText
+      ? rawText.replace(/<[^>]*>/g, "").slice(0, 150) || null
+      : null;
 
     return {
       id: letter.id,
