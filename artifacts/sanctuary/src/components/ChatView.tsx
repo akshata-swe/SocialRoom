@@ -551,7 +551,7 @@ export default function ChatView({ tag }: ChatViewProps) {
                             onClick={() => scrollToMessage(msg.replyTo!.id)}
                           />
                         )}
-                        <span className="select-text break-words whitespace-pre-wrap cursor-text">
+                        <span className="select-none break-words whitespace-pre-wrap">
                           <LinkifiedText text={msg.content} />
                         </span>
                       </div>
