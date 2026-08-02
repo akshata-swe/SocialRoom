@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
+import { LinkifiedText } from "@/lib/linkify";
 import {
   useGetMessages,
   useSendMessage,
@@ -550,7 +551,9 @@ export default function ChatView({ tag }: ChatViewProps) {
                             onClick={() => scrollToMessage(msg.replyTo!.id)}
                           />
                         )}
-                        <span>{msg.content}</span>
+                        <span className="select-text break-words whitespace-pre-wrap cursor-text">
+                          <LinkifiedText text={msg.content} />
+                        </span>
                       </div>
                     )}
 
