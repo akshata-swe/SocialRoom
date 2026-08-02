@@ -1,4 +1,6 @@
 import { Router } from "express";
+import fs from "fs";
+import path from "path";
 import { db } from "@workspace/db";
 import {
   messagesTable,
@@ -7,7 +9,7 @@ import {
   userProfilesTable,
   tagsTable,
 } from "@workspace/db";
-import { eq, lt, ne, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, lt, ne, desc, and, sql, inArray, isNull } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
 import { isAdmin, requireAdmin } from "../middlewares/requireAdmin";
 import { broadcast, subscribe } from "../lib/messageBus";
@@ -271,6 +273,15 @@ router.post("/messages", requireAuth, async (req, res) => {
     return;
   }
 
+  // Validate view-once URL format — must be a server-upload path, no traversal
+  if (viewOnceUrl) {
+    const uploadPathPattern = /^\/api\/uploads\/[^/\\]+\.(jpg|jpeg|png|gif|webp|heic|heif|avif)$/i;
+    if (!uploadPathPattern.test(viewOnceUrl)) {
+      res.status(400).json({ error: "Invalid view-once photo URL" });
+      return;
+    }
+  }
+
   // Block non-admins from posting in admin-only channels
   const [tag] = await db.select().from(tagsTable).where(eq(tagsTable.id, tagId)).limit(1);
   if (tag?.isAdminOnly && !isAdmin(userId)) {
@@ -366,24 +377,90 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
     res.status(403).json({ error: "Sender cannot view their own view-once photo" });
     return;
   }
+  const now = new Date();
+
+  // Fast-path checks before touching the filesystem
   if (message.viewOnceViewedAt) {
     res.status(410).json({ error: "This photo has already been viewed" });
     return;
   }
-  const now = new Date();
   if (message.viewOnceExpiresAt && message.viewOnceExpiresAt < now) {
     res.status(410).json({ error: "This photo has expired" });
     return;
   }
 
-  await db
+  // Resolve the file on disk from the URL path  (/api/uploads/filename.jpg)
+  const filename = path.basename(message.viewOnceUrl);
+  const uploadDir = path.join(process.cwd(), "uploads");
+  const filePath = path.join(uploadDir, filename);
+
+  if (!fs.existsSync(filePath)) {
+    // File already deleted (server restart wiped uploads).
+    // Atomically mark as viewed so UI shows "Opened" and stops prompting.
+    await db
+      .update(messagesTable)
+      .set({ viewOnceViewedAt: now, viewOnceViewedBy: userId })
+      .where(and(eq(messagesTable.id, messageId), isNull(messagesTable.viewOnceViewedAt)));
+    broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
+    res.status(410).json({ error: "This photo is no longer available" });
+    return;
+  }
+
+  // Read file bytes into memory BEFORE the DB claim so a read error cannot
+  // leave a "viewed" record without the image having been served.
+  let fileBuffer: Buffer;
+  try {
+    fileBuffer = fs.readFileSync(filePath);
+  } catch {
+    res.status(500).json({ error: "Failed to read photo" });
+    return;
+  }
+
+  // ── Atomic one-view claim ────────────────────────────────────────────────
+  // The WHERE clause includes `viewed_at IS NULL` so that under a race
+  // (double-tap, two devices) only one request can claim the view.
+  // If 0 rows are updated the current request lost the race — return 410.
+  const claimed = await db
     .update(messagesTable)
     .set({ viewOnceViewedAt: now, viewOnceViewedBy: userId })
-    .where(eq(messagesTable.id, messageId));
+    .where(and(eq(messagesTable.id, messageId), isNull(messagesTable.viewOnceViewedAt)))
+    .returning({ id: messagesTable.id });
 
+  if (claimed.length === 0) {
+    // Another concurrent request claimed the view first
+    res.status(410).json({ error: "This photo has already been viewed" });
+    return;
+  }
+
+  // Infer MIME type from extension
+  const MIME_MAP: Record<string, string> = {
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png":  "image/png",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".avif": "image/avif",
+  };
+  const ext = path.extname(filename).toLowerCase();
+  const contentType = MIME_MAP[ext] ?? "application/octet-stream";
+
+  // Notify the sender via SSE — view is now committed
   broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
 
-  res.json({ url: message.viewOnceUrl });
+  // Delete the file — image now lives only in the response buffer
+  try { fs.unlinkSync(filePath); } catch { /* ignore if already gone */ }
+
+  // Return image bytes — no caching, no content-disposition (browser renders inline)
+  res.set({
+    "Content-Type": contentType,
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Content-Length": String(fileBuffer.length),
+  });
+  res.end(fileBuffer);
 });
 
 // ---------------------------------------------------------------------------

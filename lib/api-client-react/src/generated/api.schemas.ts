@@ -210,14 +210,34 @@ export interface Message {
   reactions: MessageReactions;
   /** Snapshot of the parent message when this is a quote-reply. Null if not a reply. */
   replyTo?: MessageReplyPreview | null;
+  /** View-once photo metadata. Null for regular text messages. */
+  viewOnce?: MessageViewOnce | null;
+}
+
+export type MessageViewOnceStatus = typeof MessageViewOnceStatus[keyof typeof MessageViewOnceStatus];
+
+export const MessageViewOnceStatus = {
+  unseen: 'unseen',
+  opened: 'opened',
+  expired: 'expired',
+} as const;
+
+export interface MessageViewOnce {
+  status: MessageViewOnceStatus;
+  /** @nullable */
+  expiresAt?: string | null;
+  /** @nullable */
+  viewedAt?: string | null;
+  isSender: boolean;
 }
 
 export interface MessageInput {
   tagId: number;
-  /** @minLength 1 */
-  content: string;
+  content?: string;
   /** ID of the message being quoted/replied to */
   replyToId?: number | null;
+  /** URL of an uploaded image to send as a view-once photo */
+  viewOnceUrl?: string | null;
 }
 
 export interface MessageUpdateInput {

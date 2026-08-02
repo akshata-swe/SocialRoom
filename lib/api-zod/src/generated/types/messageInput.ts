@@ -8,8 +8,9 @@
 
 export interface MessageInput {
   tagId: number;
-  /** @minLength 1 */
-  content: string;
+  content?: string;
   /** ID of the message being quoted/replied to */
   replyToId?: number | null;
+  /** URL of an uploaded image to send as a view-once photo */
+  viewOnceUrl?: string | null;
 }
