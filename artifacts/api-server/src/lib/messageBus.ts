@@ -19,7 +19,13 @@ export type BusEvent =
   | { type: "reaction"; payload: { messageId: number; reactions: Record<string, string[]> } }
   | { type: "view-once-viewed"; payload: { messageId: number } };
 
+export type UserBusEvent =
+  | { type: "view-once-opened"; payload: { messageId: number; tagId: number; tagName: string } };
+
 type Listener = (event: BusEvent) => void;
+type UserListener = (event: UserBusEvent) => void;
+
+// ── Tag-scoped bus ────────────────────────────────────────────────────────────
 
 const subscribers = new Map<number, Set<Listener>>();
 
@@ -42,4 +48,29 @@ export function subscribe(tagId: number, listener: Listener): () => void {
 /** Broadcast a typed event to all SSE clients listening on tagId. */
 export function broadcast(tagId: number, event: BusEvent): void {
   subscribers.get(tagId)?.forEach((listener) => listener(event));
+}
+
+// ── User-scoped bus ───────────────────────────────────────────────────────────
+
+const userSubscribers = new Map<string, Set<UserListener>>();
+
+/** Subscribe to user-level events for a given userId. Returns an unsubscribe fn. */
+export function subscribeUser(userId: string, listener: UserListener): () => void {
+  if (!userSubscribers.has(userId)) {
+    userSubscribers.set(userId, new Set());
+  }
+  userSubscribers.get(userId)!.add(listener);
+
+  return () => {
+    const subs = userSubscribers.get(userId);
+    if (subs) {
+      subs.delete(listener);
+      if (subs.size === 0) userSubscribers.delete(userId);
+    }
+  };
+}
+
+/** Broadcast a user-level event to a specific user's SSE clients. */
+export function broadcastToUser(userId: string, event: UserBusEvent): void {
+  userSubscribers.get(userId)?.forEach((listener) => listener(event));
 }

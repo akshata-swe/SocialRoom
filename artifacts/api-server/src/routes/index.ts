@@ -9,6 +9,7 @@ import profileRouter from "./profile";
 import uploadRouter from "./upload";
 import notificationsRouter from "./notifications";
 import adminRouter from "./admin";
+import userEventsRouter from "./user-events";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use(profileRouter);
 router.use(uploadRouter);
 router.use(notificationsRouter);
 router.use(adminRouter);
+router.use(userEventsRouter);
 
 export default router;

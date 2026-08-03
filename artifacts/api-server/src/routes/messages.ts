@@ -12,7 +12,7 @@ import {
 import { eq, lt, ne, desc, and, sql, inArray, isNull } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/requireAuth";
 import { isAdmin, requireAdmin } from "../middlewares/requireAdmin";
-import { broadcast, subscribe } from "../lib/messageBus";
+import { broadcast, broadcastToUser, subscribe } from "../lib/messageBus";
 
 const router = Router();
 
@@ -429,6 +429,14 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
     return;
   }
 
+  // Look up tag name once — used for the sender notification below
+  const [tag] = await db
+    .select({ name: tagsTable.name })
+    .from(tagsTable)
+    .where(eq(tagsTable.id, message.tagId))
+    .limit(1);
+  const tagName = tag?.name ?? "your chat";
+
   // Resolve the file on disk from the URL path  (/api/uploads/filename.jpg)
   const filename = path.basename(message.viewOnceUrl);
   const uploadDir = path.join(process.cwd(), "uploads");
@@ -437,11 +445,17 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
   if (!fs.existsSync(filePath)) {
     // File already deleted (server restart wiped uploads).
     // Atomically mark as viewed so UI shows "Opened" and stops prompting.
-    await db
+    // Use .returning() so we can confirm this request won the claim race.
+    const missingClaimed = await db
       .update(messagesTable)
       .set({ viewOnceViewedAt: now, viewOnceViewedBy: userId })
-      .where(and(eq(messagesTable.id, messageId), isNull(messagesTable.viewOnceViewedAt)));
-    broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
+      .where(and(eq(messagesTable.id, messageId), isNull(messagesTable.viewOnceViewedAt)))
+      .returning({ id: messagesTable.id });
+    if (missingClaimed.length > 0) {
+      // Only update the chat bubble — the photo was never actually displayed,
+      // so do not send a "photo was seen" toast to the sender.
+      broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
+    }
     res.status(410).json({ error: "This photo is no longer available" });
     return;
   }
@@ -478,6 +492,7 @@ router.post("/messages/:messageId/view", requireAuth, async (req, res) => {
 
   // Notify the sender via SSE — view is now committed
   broadcast(message.tagId, { type: "view-once-viewed", payload: { messageId } });
+  broadcastToUser(message.authorId, { type: "view-once-opened", payload: { messageId, tagId: message.tagId, tagName } });
 
   // Delete the file — image now lives only in the response buffer
   try { fs.unlinkSync(filePath); } catch { /* ignore if already gone */ }

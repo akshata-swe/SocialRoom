@@ -6,7 +6,8 @@ import LetterComposer from "../components/LetterComposer";
 import LetterReader from "../components/LetterReader";
 import IdleOverlay from "../components/IdleOverlay";
 import { useIdleTimer } from "../hooks/useIdleTimer";
-import { Tag } from "@workspace/api-client-react";
+import { useViewOnceNotifications } from "../hooks/useViewOnceNotifications";
+import { Tag, useGetTags } from "@workspace/api-client-react";
 import { Menu } from "lucide-react";
 
 const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
@@ -19,6 +20,23 @@ export default function Sanctuary() {
   const [activeLetterId, setActiveLetterId] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isIdle, setIsIdle] = useState(false);
+
+  const { data: allTags } = useGetTags();
+
+  // Navigate to a chat when the sender's view-once notification is tapped
+  const handleViewOnceNavigate = useCallback(
+    (tagId: number) => {
+      const target = allTags?.find((t) => t.id === tagId);
+      if (target && target.type === "chat") {
+        setActiveTag(target);
+        setView("chat");
+        setIsMobileMenuOpen(false);
+      }
+    },
+    [allTags],
+  );
+
+  useViewOnceNotifications({ onNavigate: handleViewOnceNavigate });
 
   useIdleTimer({
     timeoutMs: IDLE_TIMEOUT_MS,
