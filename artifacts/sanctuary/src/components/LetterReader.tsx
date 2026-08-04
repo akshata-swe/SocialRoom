@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, lazy, Suspense } from "react";
+import { LinkifiedText, linkifyHtml } from "@/lib/linkify";
 import {
   useGetLetter,
   useReactToLetter,
@@ -158,10 +159,10 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
           </header>
 
           {/* Body */}
-          <div className="prose prose-invert prose-lg md:prose-xl max-w-none font-serif text-foreground/90 leading-relaxed font-light" ref={contentRef}>
+          <div className="prose prose-invert prose-lg md:prose-xl max-w-none font-serif text-foreground/90 leading-relaxed font-light select-none" ref={contentRef}>
             {blocks.map((block, idx) => {
               if (block.type === "paragraph") {
-                return <p key={block.id || idx} dangerouslySetInnerHTML={{ __html: block.data.text || "" }} />;
+                return <p key={block.id || idx} dangerouslySetInnerHTML={{ __html: linkifyHtml(block.data.text || "") }} />;
               }
               return null;
             })}
@@ -261,8 +262,8 @@ export default function LetterReader({ letterId, onClose }: LetterReaderProps) {
                           {format(new Date(c.createdAt), "MMM d, yyyy")}
                         </span>
                       </div>
-                      <p className="text-[15px] leading-relaxed text-foreground/80 font-light bg-muted/30 rounded-xl px-4 py-3 border border-border/30">
-                        {c.content}
+                      <p className="text-[15px] leading-relaxed text-foreground/80 font-light bg-muted/30 rounded-xl px-4 py-3 border border-border/30 select-none">
+                        <LinkifiedText text={c.content} />
                       </p>
                     </div>
                   ))}

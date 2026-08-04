@@ -423,6 +423,30 @@ paths:
         "204":
           description: Deleted
 
+  /messages/{messageId}/view:
+    post:
+      operationId: viewOncePhoto
+      tags: [messages]
+      summary: Open a view-once photo (recipient only). Returns raw image bytes and deletes the file from the server. Only one request can claim the view; concurrent requests receive 410.
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Raw image bytes. Served exactly once, then deleted server-side.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Sender cannot view their own view-once photo
+        "410":
+          description: Photo already viewed, expired, or no longer available
+
   /messages/{messageId}/react:
     post:
       operationId: reactToMessage
@@ -906,6 +930,29 @@ components:
         - senderDisplayName
         - content
 
+    MessageViewOnce:
+      type: object
+      description: View-once photo metadata. Present only when the message contains a view-once photo.
+      properties:
+        status:
+          type: string
+          enum: [unseen, opened, expired]
+          description: Current lifecycle state of the view-once photo
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When the photo expires (24 h after sending). Null if no expiry set.
+        viewedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When the recipient opened the photo. Null until viewed.
+        isSender:
+          type: boolean
+          description: True when the requesting user is the one who sent the photo
+      required:
+        - status
+        - isSender
+
     Message:
       type: object
       properties:
@@ -942,6 +989,10 @@ components:
           $ref: "#/components/schemas/MessageReplyPreview"
           description: Snapshot of the parent message when this is a quote-reply. Null if not a reply.
           nullable: true
+        viewOnce:
+          $ref: "#/components/schemas/MessageViewOnce"
+          description: View-once photo metadata. Null for regular text messages.
+          nullable: true
       required:
         - id
         - tagId
@@ -959,14 +1010,17 @@ components:
           type: integer
         content:
           type: string
-          minLength: 1
+          description: Message text. Optional when viewOnceUrl is provided.
         replyToId:
           type: integer
           description: ID of the message being quoted/replied to
           nullable: true
+        viewOnceUrl:
+          type: string
+          description: Server-upload URL of an image to send as a view-once photo. Must match /api/uploads/<filename>.<image-ext>. Mutually exclusive with a content-only message.
+          nullable: true
       required:
         - tagId
-        - content
 
     MessageUpdateInput:
       type: object

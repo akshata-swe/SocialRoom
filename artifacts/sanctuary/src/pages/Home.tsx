@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { Bell, X } from "lucide-react";
-import { useUser, SignIn, SignUp } from "@clerk/react";
+import { Bell } from "lucide-react";
+import { useUser } from "@clerk/react";
 import {
   useGetNotifications,
   useMarkNotificationsSeen,
@@ -12,7 +12,6 @@ const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 export default function Home() {
   const { isSignedIn } = useUser();
   const [, setLocation] = useLocation();
-  const [authView, setAuthView] = useState<"signin" | "signup" | null>(null);
 
   const { data: notifications, isSuccess: notifLoaded } = useGetNotifications({
     query: { enabled: isSignedIn === true },
@@ -20,7 +19,6 @@ export default function Home() {
 
   const markSeenMutation = useMarkNotificationsSeen();
 
-  // Sum every signal type that means "something new is waiting"
   const totalNew = isSignedIn
     ? (notifications?.newMessages ?? 0) +
       (notifications?.newLetters ?? 0) +
@@ -28,7 +26,7 @@ export default function Home() {
       (notifications?.newLetterComments ?? 0)
     : 0;
 
-  // Auto-redirect when there is nothing new to announce
+  // Auto-redirect when signed in and nothing new to announce
   useEffect(() => {
     if (!isSignedIn || !notifLoaded) return;
     if (totalNew === 0) {
@@ -37,17 +35,12 @@ export default function Home() {
     }
   }, [isSignedIn, notifLoaded, totalNew, setLocation]);
 
-  // Close auth overlay once Clerk confirms sign-in
-  useEffect(() => {
-    if (isSignedIn && authView) setAuthView(null);
-  }, [isSignedIn, authView]);
-
   const handleEnter = () => {
     if (isSignedIn) {
       markSeenMutation.mutate();
       setLocation("/sanctuary");
     } else {
-      setAuthView("signin");
+      setLocation("/sign-in");
     }
   };
 
@@ -68,7 +61,6 @@ export default function Home() {
     if (notes > 0)
       parts.push(`${notes} new note${notes === 1 ? "" : "s"} on your letters`);
 
-    // Letter reactions have no timestamp so only show them if nothing else fired
     if (parts.length === 0) {
       const lr = notifications?.totalLetterReactions ?? 0;
       if (lr > 0)
@@ -80,11 +72,7 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-background text-foreground relative overflow-hidden">
-      {/* Background texture */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
-        style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }}
-      />
+      {/* Radial glow */}
       <div className="absolute inset-0 z-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
 
       <header className="w-full flex justify-between items-center px-6 md:px-12 py-8 z-10 relative">
@@ -93,7 +81,7 @@ export default function Home() {
         </span>
         {!isSignedIn && (
           <button
-            onClick={() => setAuthView("signin")}
+            onClick={() => setLocation("/sign-in")}
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-300"
           >
             Sign In
@@ -130,47 +118,6 @@ export default function Home() {
       <footer className="w-full py-8 text-center text-muted-foreground/60 text-sm z-10 relative font-light">
         <p>A private, intentional digital space.</p>
       </footer>
-
-      {/* Inline auth overlay */}
-      {authView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm px-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-sm">
-            <button
-              onClick={() => setAuthView(null)}
-              className="absolute -top-10 right-0 p-2 text-muted-foreground/50 hover:text-foreground transition-colors"
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
-
-            {authView === "signin" ? (
-              <SignIn
-                routing="virtual"
-                afterSignInUrl={`${basePath}/sanctuary`}
-                signUpUrl={undefined}
-                appearance={{
-                  elements: {
-                    footer: "hidden",
-                    footerAction: "hidden",
-                  },
-                }}
-              />
-            ) : (
-              <SignUp
-                routing="virtual"
-                afterSignUpUrl={`${basePath}/sanctuary`}
-                signInUrl={undefined}
-                appearance={{
-                  elements: {
-                    footer: "hidden",
-                    footerAction: "hidden",
-                  },
-                }}
-              />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

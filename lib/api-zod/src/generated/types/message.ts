@@ -7,6 +7,7 @@
  */
 import type { MessageReactions } from './messageReactions';
 import type { MessageReplyPreview } from './messageReplyPreview';
+import type { MessageViewOnce } from './messageViewOnce';
 
 export interface Message {
   id: number;
@@ -29,4 +30,6 @@ export interface Message {
   reactions: MessageReactions;
   /** Snapshot of the parent message when this is a quote-reply. Null if not a reply. */
   replyTo?: MessageReplyPreview | null;
+  /** View-once photo metadata. Null for regular text messages. */
+  viewOnce?: MessageViewOnce | null;
 }
